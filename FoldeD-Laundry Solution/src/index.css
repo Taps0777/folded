@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --cream: #FBFBFD;
+    --ink: #0F172A;
+    --slate: #64748B;
+    --mint: #059669;
+    --mint-soft: #ECFDF5;
+    --coral: #E11D48;
+    --coral-soft: #FFF1F2;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #FBFBFD;
+    color: #0F172A;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: #0F172A;
+    letter-spacing: -0.025em;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
+
+  .btn-coral {
+    @apply bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow;
+  }
+
+  .btn-mint {
+    @apply bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm;
+  }
+
+  .btn-ink {
+    @apply bg-slate-900 text-white hover:bg-slate-800 shadow-sm;
+  }
+
+  .btn-outline {
+    @apply bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-xs;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100;
+  }
+
+  /* Cards */
+  .card-fresh {
+    @apply bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-slate-300;
+  }
+
+  /* Inputs */
+  .input-fresh {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition-all focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none text-slate-900 placeholder:text-slate-400;
+  }
+
+  /* Fabric Fold subtle diagonal motif */
+  .fabric-pattern {
+    background-color: #FBFBFD;
+    background-image: radial-gradient(#CBD5E1 0.75px, transparent 0.75px);
+    background-size: 24px 24px;
+    opacity: 0.6;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}

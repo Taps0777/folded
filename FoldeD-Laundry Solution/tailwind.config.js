@@ -1,0 +1,88 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        cream: '#FAF8F5',
+        ink: {
+          DEFAULT: '#1A1A2E',
+          light: '#2E2E48',
+          muted: '#4A4A68',
+        },
+        slate: {
+          DEFAULT: '#6B7280',
+          50: '#F9FAFB',
+          100: '#F3F4F6',
+          200: '#E5E7EB',
+          300: '#D1D5DB',
+          400: '#9CA3AF',
+          500: '#6B7280',
+          600: '#4B5563',
+          700: '#374151',
+          800: '#1F2937',
+          900: '#111827',
+        },
+        mint: {
+          DEFAULT: '#00BFA6',
+          soft: '#E6FAF8',
+          dark: '#009E89',
+          50: '#F0FDFB',
+          100: '#CCFBF1',
+          200: '#99F6E4',
+          500: '#00BFA6',
+          600: '#00A892',
+          700: '#008F7C',
+        },
+        coral: {
+          DEFAULT: '#FF6B5B',
+          soft: '#FFF0EF',
+          dark: '#E05344',
+          50: '#FFF5F4',
+          100: '#FFE2DE',
+          500: '#FF6B5B',
+          600: '#E85545',
+        },
+        primary: {
+          DEFAULT: '#00BFA6',
+          50: '#F0FDFB',
+          100: '#CCFBF1',
+          200: '#99F6E4',
+          300: '#5EEAD4',
+          400: '#2DD4BF',
+          500: '#00BFA6',
+          600: '#00A892',
+          700: '#008F7C',
+          800: '#115E59',
+          900: '#134E4A',
+        },
+        navy: {
+          DEFAULT: '#1A1A2E',
+          800: '#16213E',
+          900: '#0F3460',
+        },
+        success: '#10B981',
+        warning: '#F59E0B',
+        error: '#EF4444',
+      },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'sans-serif'],
+        sans: ['"DM Sans"', 'Inter', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      boxShadow: {
+        'soft': '0 2px 10px rgba(26, 26, 46, 0.06)',
+        'card': '0 4px 20px rgba(26, 26, 46, 0.08)',
+        'hover': '0 10px 30px rgba(26, 26, 46, 0.12)',
+        'glow-mint': '0 0 25px rgba(0, 191, 166, 0.3)',
+      },
+      borderRadius: {
+        'pill': '100px',
+      },
+    },
+  },
+  plugins: [],
+}
