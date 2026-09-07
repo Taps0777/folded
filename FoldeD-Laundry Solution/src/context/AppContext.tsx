@@ -1,43 +1,58 @@
 import React, { createContext, useState, useEffect } from 'react';
-import type { UserRole, Profile, Order } from '../types';
-import { INITIAL_PROFILES } from '../services/mockData';
-import { StorageService } from '../services/storage';
+import type { UserRole, Profile } from '../types';
+import { authService } from '../services/api/authService';
 
 interface AppContextType {
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
-  currentUser: Profile;
-  orders: Order[];
-  refreshOrders: () => void;
+  currentUser: Profile | null;
   toastMessage: { text: string; type: 'success' | 'info' | 'error' } | null;
   showToast: (text: string, type?: 'success' | 'info' | 'error') => void;
-  resetData: () => void;
+  isLoadingAuth: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    return (localStorage.getItem('ff_active_role') as UserRole) || 'customer';
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => StorageService.getOrders());
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  const [currentRole, setCurrentRole] = useState<UserRole>('customer');
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
-  const refreshOrders = () => {
-    setOrders(StorageService.getOrders());
-  };
-
   useEffect(() => {
-    localStorage.setItem('ff_active_role', currentRole);
-  }, [currentRole]);
+    let mounted = true;
 
-  useEffect(() => {
-    const handleStorageUpdate = () => {
-      refreshOrders();
+    async function loadSession() {
+      try {
+        const profile = await authService.getCurrentProfile();
+        if (mounted && profile) {
+          setCurrentUser(profile);
+          setCurrentRole(profile.role);
+        }
+      } catch (err) {
+        console.error("Auth init error", err);
+      } finally {
+        if (mounted) setIsLoadingAuth(false);
+      }
+    }
+
+    loadSession();
+
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        const profile = await authService.getCurrentProfile();
+        setCurrentUser(profile);
+        if (profile) setCurrentRole(profile.role);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setCurrentRole('customer');
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
     };
-    window.addEventListener('ff_storage_update', handleStorageUpdate);
-    return () => window.removeEventListener('ff_storage_update', handleStorageUpdate);
   }, []);
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -47,25 +62,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  const resetData = () => {
-    StorageService.resetAll();
-    refreshOrders();
-    showToast('Demo data reset to fresh defaults', 'info');
-  };
-
-  const currentUser = INITIAL_PROFILES[currentRole] || INITIAL_PROFILES.customer;
-
   return (
     <AppContext.Provider
       value={{
         currentRole,
         setCurrentRole,
         currentUser,
-        orders,
-        refreshOrders,
         toastMessage,
         showToast,
-        resetData,
+        isLoadingAuth
       }}
     >
       {children}

@@ -22,7 +22,9 @@ import {
 } from 'lucide-react';
 
 export const StaffPortalPage: React.FC = () => {
-  const { orders, refreshOrders, showToast } = useApp();
+  const { showToast } = useApp();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeStaffTab, setActiveStaffTab] = useState<'pickup' | 'facility' | 'delivery'>('pickup');
 
   // Pickup Handover Modal State
@@ -50,6 +52,23 @@ export const StaffPortalPage: React.FC = () => {
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<Order | null>(null);
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      const allOrders = await orderService.getAllOrders();
+      setOrders(allOrders);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadData();
+  }, []);
 
   // Orders filtered by staff department
   const pickupQueue = orders.filter(
@@ -80,65 +99,85 @@ export const StaffPortalPage: React.FC = () => {
   };
 
   // Complete Pickup Handover
-  const handleConfirmPickup = (e: React.FormEvent) => {
+  const handleConfirmPickup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pickupModalOrder) return;
 
-    StorageService.updateOrderPickup(pickupModalOrder.id, bagTagId, scaleWeight);
-    // Auto-advance to facility intake for smooth testing
-    StorageService.updateOrderStatus(
-      pickupModalOrder.id,
-      'RECEIVED_AT_FACILITY',
-      `Transferred to central facility hub in sealed bag ${bagTagId}`,
-      'Pickup Courier'
-    );
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      await orderService.updateOrderPickup(pickupModalOrder.id, bagTagId, scaleWeight);
+      // Auto-advance to facility intake for smooth testing
+      await orderService.updateOrderStatus(
+        pickupModalOrder.id,
+        'RECEIVED_AT_FACILITY',
+        `Transferred to central facility hub in sealed bag ${bagTagId}`,
+        'Pickup Courier'
+      );
 
-    refreshOrders();
-    setPickupModalOrder(null);
-    showToast(`Order ${pickupModalOrder.id} picked up & checked in at facility!`, 'success');
+      await loadData();
+      setPickupModalOrder(null);
+      showToast(`Order ${pickupModalOrder.id} picked up & checked in at facility!`, 'success');
+    } catch (err) {
+      showToast('Failed to confirm pickup', 'error');
+    }
   };
 
   // Advance Facility Stage
-  const handleAdvanceStage = (orderId: string, currentStage: LaundryStage = 'RECEIVED') => {
+  const handleAdvanceStage = async (orderId: string, currentStage: LaundryStage = 'RECEIVED') => {
     const currentIndex = LAUNDRY_STAGES_ORDER.indexOf(currentStage);
     if (currentIndex < LAUNDRY_STAGES_ORDER.length - 1) {
       const nextStage = LAUNDRY_STAGES_ORDER[currentIndex + 1];
-      StorageService.advanceLaundryStage(orderId, nextStage);
-      refreshOrders();
-      showToast(`Order advanced to stage: ${nextStage}`, 'success');
+      try {
+        const { orderService } = await import('../../services/api/orderService');
+        await orderService.advanceLaundryStage(orderId, nextStage);
+        await loadData();
+        showToast(`Order advanced to stage: ${nextStage}`, 'success');
+      } catch (err) {
+        showToast('Failed to advance stage', 'error');
+      }
     }
   };
 
   // Submit QC
-  const handleSubmitQc = (e: React.FormEvent) => {
+  const handleSubmitQc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!qcModalOrder) return;
 
-    StorageService.submitQualityCheck(qcModalOrder.id, {
-      ...qcForm,
-      passed: !qcForm.damage_detected,
-      inspected_at: new Date().toISOString(),
-    });
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      await orderService.submitQualityCheck(qcModalOrder.id, {
+        ...qcForm,
+        passed: !qcForm.damage_detected,
+        inspected_at: new Date().toISOString(),
+      });
 
-    refreshOrders();
-    setQcModalOrder(null);
-    showToast(`Quality inspection certified for Order ${qcModalOrder.id}!`, 'success');
+      await loadData();
+      setQcModalOrder(null);
+      showToast(`Quality inspection certified for Order ${qcModalOrder.id}!`, 'success');
+    } catch (err) {
+      showToast('Failed to submit quality check', 'error');
+    }
   };
 
   // Handle Delivery Verification PIN
-  const handleVerifyDelivery = (e: React.FormEvent) => {
+  const handleVerifyDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deliveryModalOrder) return;
 
-    const res = StorageService.verifyDeliveryPin(deliveryModalOrder.id, enteredPin);
-    if (res.success) {
-      refreshOrders();
-      setDeliveryModalOrder(null);
-      setEnteredPin('');
-      setPinError('');
-      showToast(`Handover Verified! Order ${deliveryModalOrder.id} marked DELIVERED.`, 'success');
-    } else {
-      setPinError(res.message);
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      const res = await orderService.verifyDeliveryPin(deliveryModalOrder.id, enteredPin);
+      if (res.success) {
+        await loadData();
+        setDeliveryModalOrder(null);
+        setEnteredPin('');
+        setPinError('');
+        showToast(`Handover Verified! Order ${deliveryModalOrder.id} marked DELIVERED.`, 'success');
+      } else {
+        setPinError(res.message);
+      }
+    } catch (err) {
+      setPinError('Failed to verify PIN');
     }
   };
 

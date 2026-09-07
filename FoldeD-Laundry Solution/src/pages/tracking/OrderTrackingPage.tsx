@@ -27,19 +27,50 @@ import {
 export const OrderTrackingPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const { showToast } = useApp();
-  const order = orderId ? StorageService.getOrderById(orderId) : null;
+  const [order, setOrder] = useState<any>(() => (orderId ? StorageService.getOrderById(orderId) : null));
+  const [isLoading, setIsLoading] = useState(!order);
+
+  React.useEffect(() => {
+    if (!orderId) {
+      setIsLoading(false);
+      return;
+    }
+    import('../../services/api/orderService').then(({ orderService }) => {
+      orderService.getOrderById(orderId)
+        .then((fetched) => {
+          if (fetched) {
+            setOrder(fetched);
+          }
+        })
+        .catch((err) => {
+          console.error('Error loading order tracking:', err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    });
+  }, [orderId]);
 
   // Interactive GPS Radar Simulation State
   const [riderProgress, setRiderProgress] = useState(0.45); // 0 (Hub) to 1 (Doorstep)
   const [callRiderModalOpen, setCallRiderModalOpen] = useState(false);
 
+  if (isLoading) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin mx-auto" />
+        <p className="text-xs text-slate-500 font-medium">Connecting to GPS telemetry & tracking...</p>
+      </div>
+    );
+  }
+
   if (!order) {
     return (
       <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-4">
         <Package className="w-12 h-12 text-slate-300 mx-auto" />
-        <h2 className="text-2xl font-bold font-display text-ink">Order Not Found</h2>
+        <h2 className="text-2xl font-bold font-display text-slate-900">Order Not Found</h2>
         <p className="text-xs text-slate-500">
-          The requested tracking reference '{orderId}' does not exist in our database.
+          The requested tracking reference '{orderId}' does not exist or has not synced yet.
         </p>
         <Link to="/dashboard">
           <Button variant="coral" size="sm">
@@ -50,7 +81,7 @@ export const OrderTrackingPage: React.FC = () => {
     );
   }
 
-  const statusInfo = ORDER_STATUS_DETAILS[order.status] || {
+  const statusInfo = (ORDER_STATUS_DETAILS as any)[order.status] || {
     label: order.status,
     description: '',
     color: 'text-mint',
@@ -336,8 +367,8 @@ export const OrderTrackingPage: React.FC = () => {
           </h3>
 
           <div className="space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-            {order.history.map((hist, idx) => {
-              const isLatest = idx === order.history.length - 1;
+            {(order.history || []).map((hist: any, idx: number) => {
+              const isLatest = idx === (order.history?.length || 0) - 1;
               return (
                 <div key={hist.id} className="relative flex items-start gap-4 pl-8">
                   <div
@@ -396,7 +427,7 @@ export const OrderTrackingPage: React.FC = () => {
                   <Scissors className="w-3.5 h-3.5 text-coral" />
                   Tailoring &amp; Alterations Included:
                 </div>
-                {order.alterations.map((alt) => (
+                {(order.alterations || []).map((alt: any) => (
                   <div key={alt.id} className="flex justify-between items-center text-xs text-slate-600 bg-slate-50 p-2 rounded-lg">
                     <span>{alt.name} (x{alt.quantity})</span>
                     <strong className="font-mono text-ink">{formatCurrency(alt.price * alt.quantity)}</strong>

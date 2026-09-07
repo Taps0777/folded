@@ -9,6 +9,7 @@ import { CustomerDashboardPage } from './pages/dashboard/CustomerDashboardPage';
 import { OrderTrackingPage } from './pages/tracking/OrderTrackingPage';
 import { StaffPortalPage } from './pages/staff/StaffPortalPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { LoginPage } from './pages/auth/LoginPage';
 
 // Scroll to top automatically when route changes
 const ScrollToTop: React.FC = () => {
@@ -29,6 +30,7 @@ function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/booking" element={<BookingPage />} />
               <Route path="/dashboard" element={<CustomerDashboardPage />} />
               <Route path="/track/:orderId" element={<OrderTrackingPage />} />

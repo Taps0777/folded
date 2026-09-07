@@ -28,8 +28,29 @@ import {
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, showToast } = useApp();
-  const services = StorageService.getServices();
-  const subscriptionPlans = StorageService.getSubscriptions();
+  
+  const [services, setServices] = useState<any[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { serviceService } = await import('../../services/api/serviceService');
+        // Fetch real services from DB
+        const dbServices = await serviceService.getAllServices();
+        setServices(dbServices.length > 0 ? dbServices : StorageService.getServices());
+        
+        // Use StorageService for subscriptions as fallback since we didn't build subscriptionService yet
+        setSubscriptionPlans(StorageService.getSubscriptions());
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   // B2B Bulk Calculator State
   const [b2bSector, setB2bSector] = useState<'hospitality' | 'gyms' | 'salons' | 'corporate'>('hospitality');
@@ -37,9 +58,9 @@ export const HomePage: React.FC = () => {
   const [b2bModalOpen, setB2bModalOpen] = useState(false);
   const [b2bForm, setB2bForm] = useState({
     companyName: '',
-    contactName: currentUser.full_name,
-    email: currentUser.email,
-    phone: currentUser.phone,
+    contactName: currentUser?.full_name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
     city: 'Bengaluru',
   });
 
@@ -58,7 +79,7 @@ export const HomePage: React.FC = () => {
   });
   const [calcMode, setCalcMode] = useState<'kg' | 'pieces'>('kg');
 
-  const selectedService = services.find((s) => s.id === calcServiceId) || services[0];
+  const selectedService = services.find((s) => s.id === calcServiceId) || services[0] || StorageService.getServices()[0];
 
   // Calculate estimated price
   let estimatedPrice = 0;
@@ -73,18 +94,23 @@ export const HomePage: React.FC = () => {
       : selectedService.base_price * totalPieces;
   }
 
-  const handleCheckPincode = (e: React.FormEvent) => {
+  const handleCheckPincode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pincode || pincode.trim().length < 6) {
       showToast('Please enter a valid 6-digit postal code', 'error');
       return;
     }
-    const res = StorageService.checkServiceability(pincode);
-    if (res.serviceable && res.area) {
-      setPincodeResult({ checked: true, serviceable: true, areaName: `${res.area.area_name}, ${res.area.city}` });
-      showToast(`Great news! We service ${res.area.area_name}`, 'success');
-    } else {
-      setPincodeResult({ checked: true, serviceable: false });
+    try {
+      const { areaService } = await import('../../services/api/areaService');
+      const res = await areaService.checkServiceability(pincode);
+      if (res.serviceable && res.area) {
+        setPincodeResult({ checked: true, serviceable: true, areaName: `${res.area.area_name}, ${res.area.city}` });
+        showToast(`Great news! We service ${res.area.area_name}`, 'success');
+      } else {
+        setPincodeResult({ checked: true, serviceable: false });
+      }
+    } catch (e) {
+      showToast('Error checking pincode', 'error');
     }
   };
 
@@ -132,14 +158,25 @@ export const HomePage: React.FC = () => {
   const b2bMonthlyTotal = b2bMonthlyKg * b2bCommercialRate;
   const b2bMonthlySavings = b2bRetailEst - b2bMonthlyTotal;
 
-  const handleB2bSubmit = (e: React.FormEvent) => {
+  const handleB2bSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!b2bForm.companyName.trim() || !b2bForm.email.trim()) {
       showToast('Please enter company name and work email', 'error');
       return;
     }
-    showToast(`Enterprise quote initiated for ${b2bForm.companyName}! Our commercial desk will contact ${b2bForm.email} within 2 business hours.`, 'success');
-    setB2bModalOpen(false);
+    try {
+      const { ticketService } = await import('../../services/api/ticketService');
+      await ticketService.createTicket({
+        user_id: currentUser?.id || '00000000-0000-0000-0000-000000000000', // Anonymous or system user if logged out
+        subject: `B2B Enterprise Inquiry: ${b2bForm.companyName}`,
+        message: `Company: ${b2bForm.companyName}\nEmail: ${b2bForm.email}\nPhone: ${b2bForm.phone}\nSector: ${sectorPresets[b2bSector].name}\nEstimated Volume: ${b2bMonthlyKg} kg/month`,
+        category: 'b2b_inquiry'
+      });
+      showToast(`Enterprise quote initiated for ${b2bForm.companyName}! Our commercial desk will contact ${b2bForm.email} within 2 business hours.`, 'success');
+      setB2bModalOpen(false);
+    } catch (err) {
+      showToast('Failed to submit inquiry. Please try again.', 'error');
+    }
   };
 
   return (
@@ -200,16 +237,23 @@ export const HomePage: React.FC = () => {
                     <button
                       key={item.pin}
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setPincode(item.pin);
-                        const res = StorageService.checkServiceability(item.pin);
-                        if (res.serviceable && res.area) {
-                          setPincodeResult({
-                            checked: true,
-                            serviceable: true,
-                            areaName: `${res.area.area_name}, ${res.area.city}`,
-                          });
-                          showToast(`Great news! We service ${res.area.area_name}`, 'success');
+                        try {
+                          const { areaService } = await import('../../services/api/areaService');
+                          const res = await areaService.checkServiceability(item.pin);
+                          if (res.serviceable && res.area) {
+                            setPincodeResult({
+                              checked: true,
+                              serviceable: true,
+                              areaName: `${res.area.area_name}, ${res.area.city}`,
+                            });
+                            showToast(`Great news! We service ${res.area.area_name}`, 'success');
+                          } else {
+                            setPincodeResult({ checked: true, serviceable: false });
+                          }
+                        } catch (e) {
+                          showToast('Error checking pincode', 'error');
                         }
                       }}
                       className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200/70 hover:text-slate-900 text-slate-600 font-mono transition-colors"

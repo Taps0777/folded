@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../../hooks/useApp';
+import { authService } from '../../services/api/authService';
 import type { UserRole } from '../../types';
 import { ROLE_LABELS } from '../../lib/constants';
 import {
@@ -8,22 +9,32 @@ import {
   ShoppingBag,
   Shield,
   Truck,
-  RotateCcw,
   Menu,
   X,
   ChevronDown,
+  User,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { currentRole, setCurrentRole, orders, resetData } = useApp();
+  const { currentRole, setCurrentRole, currentUser } = useApp();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
 
-  // Count active customer orders
-  const activeOrdersCount = orders.filter(
-    (o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED'
-  ).length;
+  React.useEffect(() => {
+    if (currentUser) {
+      import('../../services/api/orderService').then(({ orderService }) => {
+        orderService.getOrdersByUser(currentUser.id).then(orders => {
+          setActiveOrdersCount(orders.filter(
+            (o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED'
+          ).length);
+        });
+      });
+    }
+  }, [currentUser]);
 
   const rolesList: UserRole[] = ['customer', 'admin', 'pickup_staff', 'laundry_staff', 'delivery_staff'];
 
@@ -113,54 +124,120 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Right Action Controls */}
-        <div className="hidden sm:flex items-center gap-3">
-          {/* Discreet Persona Switcher Pill */}
-          <div className="relative">
-            <button
-              onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-700 text-xs font-medium transition-colors border border-slate-200/60"
-              title="Switch demo persona for testing"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{ROLE_LABELS[currentRole]?.title}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
+        <div className="hidden sm:flex items-center gap-2.5">
+          {currentUser ? (
+            <div className="relative">
+              <button
+                onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium transition-colors border border-slate-200/60"
+                title="Account menu"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="max-w-[110px] truncate">{currentUser.full_name || currentUser.email}</span>
+                <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                  {currentUser.role}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
 
-            {roleDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-60 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-1.5 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  Switch Demo Persona
+              {roleDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-2 z-50 animate-in fade-in zoom-in-95">
+                  <div className="px-3.5 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name || 'Active User'}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
+                  </div>
+                  
+                  <div className="py-1">
+                    <Link
+                      to={currentUser.role === 'admin' ? '/admin' : currentUser.role === 'customer' ? '/dashboard' : '/staff'}
+                      onClick={() => setRoleDropdownOpen(false)}
+                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700"
+                    >
+                      <User className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Go to Dashboard</span>
+                    </Link>
+                    <Link
+                      to="/login"
+                      onClick={() => setRoleDropdownOpen(false)}
+                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Switch Account / Demo Logins</span>
+                    </Link>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-slate-100 px-3.5 py-1.5 flex justify-between items-center text-[11px]">
+                    <button
+                      onClick={async () => {
+                        setRoleDropdownOpen(false);
+                        await authService.signOut();
+                      }}
+                      className="text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5 transition-colors"
+                    >
+                      <LogOut className="w-3 h-3" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
-                {rolesList.map((role) => (
-                  <button
-                    key={role}
-                    onClick={() => {
-                      setCurrentRole(role);
-                      setRoleDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                      currentRole === role ? 'font-semibold text-emerald-700 bg-emerald-50/60' : 'text-slate-700'
-                    }`}
-                  >
-                    <span>{ROLE_LABELS[role]?.title}</span>
-                    {currentRole === role && <span className="text-emerald-600 font-bold">✓</span>}
-                  </button>
-                ))}
-                <div className="pt-1 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-400">
-                  <button
-                    onClick={() => {
-                      resetData();
-                      setRoleDropdownOpen(false);
-                    }}
-                    className="hover:text-slate-800 flex items-center gap-1 transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reset Data
-                  </button>
-                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium transition-colors border border-transparent hover:border-slate-200"
+              >
+                <LogIn className="w-3.5 h-3.5 text-slate-500" />
+                <span>Sign In</span>
+              </Link>
+
+              {/* Discreet Persona Switcher Pill */}
+              <div className="relative">
+                <button
+                  onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-700 text-xs font-medium transition-colors border border-slate-200/60"
+                  title="Switch demo persona for testing"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>{ROLE_LABELS[currentRole]?.title}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {roleDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-60 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-1.5 z-50 animate-in fade-in zoom-in-95">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                      Switch Demo Persona
+                    </div>
+                    {rolesList.map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          setCurrentRole(role);
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors ${
+                          currentRole === role ? 'font-semibold text-emerald-700 bg-emerald-50/60' : 'text-slate-700'
+                        }`}
+                      >
+                        <span>{ROLE_LABELS[role]?.title}</span>
+                        {currentRole === role && <span className="text-emerald-600 font-bold">✓</span>}
+                      </button>
+                    ))}
+                    <div className="pt-1 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-400">
+                      <Link
+                        to="/login"
+                        onClick={() => setRoleDropdownOpen(false)}
+                        className="hover:text-emerald-600 flex items-center gap-1 transition-colors"
+                      >
+                        <Shield className="w-3 h-3" />
+                        Live DB Logins
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Primary CTA: Obsidian Black */}
           <Link to="/booking">
@@ -221,6 +298,36 @@ export const Navbar: React.FC = () => {
           >
             Admin Operations Tower
           </Link>
+
+          {/* Mobile Auth */}
+          <div className="pt-2 border-t border-slate-100">
+            {currentUser ? (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+                <div>
+                  <p className="text-xs font-semibold text-slate-800 truncate">{currentUser.full_name || currentUser.email}</p>
+                  <p className="text-[10px] text-emerald-600 font-bold uppercase">{currentUser.role}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await authService.signOut();
+                  }}
+                  className="text-xs text-rose-600 font-medium px-2 py-1 rounded-lg hover:bg-rose-50"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In to Account
+              </Link>
+            )}
+          </div>
 
           {/* Mobile Persona Switcher */}
           <div className="pt-2 border-t border-slate-100">

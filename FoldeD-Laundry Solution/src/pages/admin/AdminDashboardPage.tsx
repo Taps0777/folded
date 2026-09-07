@@ -48,10 +48,13 @@ const CATEGORY_DISTRIBUTION = [
 ];
 
 export const AdminDashboardPage: React.FC = () => {
-  const { orders, refreshOrders, showToast } = useApp();
-  const services = StorageService.getServices();
-  const serviceAreas = StorageService.getServiceAreas();
-  const tickets = StorageService.getTickets();
+  const { showToast } = useApp();
+  
+  const [orders, setOrders] = useState<any[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [serviceAreas, setServiceAreas] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
@@ -64,6 +67,31 @@ export const AdminDashboardPage: React.FC = () => {
   // Service price edit state
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [newPrice, setNewPrice] = useState<number>(0);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      // Lazy load the service so it works with updated deps
+      const { orderService } = await import('../../services/api/orderService');
+      const { serviceService } = await import('../../services/api/serviceService');
+      const { areaService } = await import('../../services/api/areaService');
+      const { ticketService } = await import('../../services/api/ticketService');
+      
+      const allOrders = await orderService.getAllOrders();
+      setOrders(allOrders);
+      setServices(await serviceService.getAllServices());
+      setServiceAreas(await areaService.getAllAreas());
+      setTickets(await ticketService.getAllTickets());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadData();
+  }, []);
 
   // Compute live KPIs
   const totalRevenue = orders.reduce((sum, o) => sum + (o.status !== 'CANCELLED' ? o.total_amount : 0), 0);
@@ -87,32 +115,44 @@ export const AdminDashboardPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Handle Quick Status Transition from Admin
-  const handleQuickStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    StorageService.updateOrderStatus(orderId, newStatus, 'Status overridden by Control Tower Admin', 'Admin');
-    refreshOrders();
-    showToast(`Order ${orderId} status set to ${newStatus}`, 'success');
+  const handleQuickStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      await orderService.updateOrderStatus(orderId, newStatus, 'Status overridden by Control Tower Admin', 'Admin');
+      await loadData();
+      showToast(`Order ${orderId} status set to ${newStatus}`, 'success');
+    } catch (e) {
+      showToast('Failed to update status', 'error');
+    }
   };
 
-  // Handle Ticket Resolution
-  const handleResolveTicketSubmit = (e: React.FormEvent) => {
+  const handleResolveTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvingTicket) return;
-    StorageService.resolveTicket(resolvingTicket.id, resolutionNote);
-    refreshOrders();
-    setResolvingTicket(null);
-    setResolutionNote('');
-    showToast(`Ticket ${resolvingTicket.id} marked resolved`, 'success');
+    try {
+      const { ticketService } = await import('../../services/api/ticketService');
+      await ticketService.resolveTicket(resolvingTicket.id, resolutionNote);
+      await loadData();
+      setResolvingTicket(null);
+      setResolutionNote('');
+      showToast(`Ticket ${resolvingTicket.id} marked resolved`, 'success');
+    } catch (e) {
+      showToast('Failed to resolve ticket', 'error');
+    }
   };
 
-  // Handle Price Save
-  const handleSavePrice = (e: React.FormEvent) => {
+  const handleSavePrice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingService) return;
-    StorageService.updateServicePrice(editingService.id, newPrice);
-    refreshOrders();
-    setEditingService(null);
-    showToast(`Updated price for ${editingService.name}`, 'success');
+    try {
+      const { serviceService } = await import('../../services/api/serviceService');
+      await serviceService.updatePrice(editingService.id, newPrice);
+      await loadData();
+      setEditingService(null);
+      showToast(`Updated price for ${editingService.name}`, 'success');
+    } catch (e) {
+      showToast('Failed to update price', 'error');
+    }
   };
 
   return (
@@ -540,10 +580,15 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => {
-                      StorageService.toggleServiceArea(area.postal_code);
-                      refreshOrders();
-                      showToast(`Service zone ${area.postal_code} updated`, 'info');
+                    onClick={async () => {
+                      try {
+                        const { areaService } = await import('../../services/api/areaService');
+                        await areaService.toggleServiceArea(area.postal_code, !area.is_active);
+                        await loadData();
+                        showToast(`Service zone ${area.postal_code} updated`, 'info');
+                      } catch (e) {
+                        showToast('Failed to update service zone', 'error');
+                      }
                     }}
                     className={`px-3 py-1 rounded-full font-semibold transition-all ${
                       area.is_active
