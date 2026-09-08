@@ -20,11 +20,28 @@ import {
   KeyRound,
 } from 'lucide-react';
 
+type StaffTab = 'pickup' | 'facility' | 'delivery';
+
+// Maps each staff role to the tabs it is permitted to view/work.
+const ROLE_TABS: Record<'pickup_staff' | 'laundry_staff' | 'delivery_staff', StaffTab[]> = {
+  pickup_staff: ['pickup'],
+  laundry_staff: ['facility'],
+  delivery_staff: ['delivery'],
+};
+
 export const StaffPortalPage: React.FC = () => {
-  const { showToast } = useApp();
+  const { showToast, currentRole, currentUser } = useApp();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeStaffTab, setActiveStaffTab] = useState<'pickup' | 'facility' | 'delivery'>('pickup');
+
+  // Determine which tabs this staff role is allowed to see.
+  const staffRole = currentUser?.role ?? currentRole;
+  const allowedTabs: StaffTab[] =
+    staffRole === 'pickup_staff' || staffRole === 'laundry_staff' || staffRole === 'delivery_staff'
+      ? ROLE_TABS[staffRole]
+      : ['pickup', 'facility', 'delivery']; // fallback (e.g. admin demo persona)
+
+  const [activeStaffTab, setActiveStaffTab] = useState<StaffTab>(allowedTabs[0]);
 
   // Pickup Handover Modal State
   const [pickupModalOrder, setPickupModalOrder] = useState<Order | null>(null);
@@ -68,6 +85,15 @@ export const StaffPortalPage: React.FC = () => {
   React.useEffect(() => {
     loadData();
   }, []);
+
+  // If the effective role changes (e.g. demo persona switch), reset the active
+  // tab to the first tab this role is allowed to view.
+  React.useEffect(() => {
+    if (!allowedTabs.includes(activeStaffTab)) {
+      setActiveStaffTab(allowedTabs[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffRole]);
 
   // Orders filtered by staff department
   const pickupQueue = orders.filter((o) =>
@@ -208,33 +234,39 @@ export const StaffPortalPage: React.FC = () => {
 
         {/* Quick Department Switcher */}
         <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-xs">
-          <button
-            onClick={() => setActiveStaffTab('pickup')}
-            className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-              activeStaffTab === 'pickup' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>Pickup ({pickupQueue.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveStaffTab('facility')}
-            className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-              activeStaffTab === 'facility' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Facility ({facilityOrders.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveStaffTab('delivery')}
-            className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-              activeStaffTab === 'delivery' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Delivery ({deliveryQueue.length})</span>
-          </button>
+          {allowedTabs.includes('pickup') && (
+            <button
+              onClick={() => setActiveStaffTab('pickup')}
+              className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                activeStaffTab === 'pickup' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Pickup ({pickupQueue.length})</span>
+            </button>
+          )}
+          {allowedTabs.includes('facility') && (
+            <button
+              onClick={() => setActiveStaffTab('facility')}
+              className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                activeStaffTab === 'facility' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Facility ({facilityOrders.length})</span>
+            </button>
+          )}
+          {allowedTabs.includes('delivery') && (
+            <button
+              onClick={() => setActiveStaffTab('delivery')}
+              className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                activeStaffTab === 'delivery' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Delivery ({deliveryQueue.length})</span>
+            </button>
+          )}
         </div>
       </div>
 

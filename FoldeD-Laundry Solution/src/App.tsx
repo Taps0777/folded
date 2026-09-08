@@ -11,6 +11,7 @@ import { OrderTrackingPage } from './pages/tracking/OrderTrackingPage';
 import { StaffPortalPage } from './pages/staff/StaffPortalPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { LoginPage } from './pages/auth/LoginPage';
+import { RoleBasedRoute, CustomerRoute, StaffRoute, AdminRoute } from './components/auth/RoleBasedRoute';
 
 // Scroll to top automatically when route changes
 const ScrollToTop: React.FC = () => {
@@ -34,10 +35,47 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/booking" element={<BookingPage />} />
-                <Route path="/dashboard" element={<CustomerDashboardPage />} />
-                <Route path="/track/:orderId" element={<OrderTrackingPage />} />
-                <Route path="/staff" element={<StaffPortalPage />} />
-                <Route path="/admin" element={<AdminDashboardPage />} />
+                
+                {/* Customer-only routes */}
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <CustomerRoute>
+                      <CustomerDashboardPage />
+                    </CustomerRoute>
+                  } 
+                />
+                
+                {/* Staff-only routes */}
+                <Route 
+                  path="/staff" 
+                  element={
+                    <StaffRoute>
+                      <StaffPortalPage />
+                    </StaffRoute>
+                  } 
+                />
+                
+                {/* Admin-only routes */}
+                <Route 
+                  path="/admin" 
+                  element={
+                    <AdminRoute>
+                      <AdminDashboardPage />
+                    </AdminRoute>
+                  } 
+                />
+                
+                {/* Order tracking - accessible to all authenticated users */}
+                <Route 
+                  path="/track/:orderId" 
+                  element={
+                    <RoleBasedRoute allowedRoles={['customer', 'admin', 'pickup_staff', 'laundry_staff', 'delivery_staff']}>
+                      <OrderTrackingPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                
                 <Route path="*" element={<HomePage />} />
               </Routes>
             </main>

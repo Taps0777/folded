@@ -88,43 +88,49 @@ export const Navbar: React.FC = () => {
           >
             Book Pickup
           </Link>
-          <Link
-            to="/dashboard"
-            className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
-              isActive('/dashboard')
-                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
-                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
-            }`}
-          >
-            <span>My Orders</span>
-            {activeOrdersCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
-                {activeOrdersCount}
-              </span>
-            )}
-          </Link>
-          <Link
-            to="/staff"
-            className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
-              isActive('/staff')
-                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
-                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-            <span>Staff Portal</span>
-          </Link>
-          <Link
-            to="/admin"
-            className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
-              isActive('/admin')
-                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
-                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-            <span>Admin</span>
-          </Link>
+          {currentUser && currentUser.role === 'customer' && (
+            <Link
+              to="/dashboard"
+              className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
+                isActive('/dashboard')
+                  ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                  : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>My Orders</span>
+              {activeOrdersCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
+                  {activeOrdersCount}
+                </span>
+              )}
+            </Link>
+          )}
+          {currentUser && ['pickup_staff', 'laundry_staff', 'delivery_staff'].includes(currentUser.role) && (
+            <Link
+              to="/staff"
+              className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
+                isActive('/staff')
+                  ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                  : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <span>Staff Portal</span>
+            </Link>
+          )}
+          {currentUser && currentUser.role === 'admin' && (
+            <Link
+              to="/admin"
+              className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
+                isActive('/admin')
+                  ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                  : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <span>Admin</span>
+            </Link>
+          )}
         </nav>
 
         {/* Right Action Controls */}
@@ -294,27 +300,33 @@ export const Navbar: React.FC = () => {
           >
             Book Pickup
           </Link>
-          <Link
-            to="/dashboard"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
-          >
-            My Orders ({activeOrdersCount} Active)
-          </Link>
-          <Link
-            to="/staff"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
-          >
-            Staff Operations
-          </Link>
-          <Link
-            to="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
-          >
-            Admin Operations Tower
-          </Link>
+          {currentUser && currentUser.role === 'customer' && (
+            <Link
+              to="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
+            >
+              My Orders ({activeOrdersCount} Active)
+            </Link>
+          )}
+          {currentUser && ['pickup_staff', 'laundry_staff', 'delivery_staff'].includes(currentUser.role) && (
+            <Link
+              to="/staff"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
+            >
+              Staff Operations
+            </Link>
+          )}
+          {currentUser && currentUser.role === 'admin' && (
+            <Link
+              to="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
+            >
+              Admin Operations Tower
+            </Link>
+          )}
 
           {/* Mobile Theme Toggle */}
           <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
