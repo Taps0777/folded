@@ -618,6 +618,42 @@ export type Database = {
         }
         Relationships: []
       }
+      alteration_services: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          price: number
+          unit: string
+          category: string | null
+          active: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          price: number
+          unit: string
+          category?: string | null
+          active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          price?: number
+          unit?: string
+          category?: string | null
+          active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           active: boolean | null
@@ -625,7 +661,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           estimated_processing_hours: number | null
+          express_surcharge: number | null
           id: string
+          maximum_quantity: number | null
           name: string
           price_per_kg: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -637,7 +675,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_processing_hours?: number | null
+          express_surcharge?: number | null
           id?: string
+          maximum_quantity?: number | null
           name: string
           price_per_kg?: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -649,7 +689,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_processing_hours?: number | null
+          express_surcharge?: number | null
           id?: string
+          maximum_quantity?: number | null
           name?: string
           price_per_kg?: number | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
@@ -808,6 +850,13 @@ export type Database = {
           p_service_id: string
           p_special_instructions: string
           p_weight_kg: number
+        }
+        Returns: Json
+      }
+      validate_coupon: {
+        Args: {
+          p_code: string
+          p_subtotal: number
         }
         Returns: Json
       }

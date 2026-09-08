@@ -81,6 +81,7 @@ export interface Service {
   pricing_type: PricingType;
   base_price: number;
   minimum_quantity: number;
+  maximum_quantity: number;
   express_surcharge: number;
   turnaround_hours: number;
   popular?: boolean;
@@ -142,6 +143,16 @@ export interface Order {
   created_at: string;
   updated_at: string;
   history: OrderStatusHistoryItem[];
+}
+
+export interface AlterationService {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  category: string;
+  active: boolean;
 }
 
 export interface AlterationItem {

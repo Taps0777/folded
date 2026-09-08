@@ -41,14 +41,6 @@ const STEPS = [
   { id: 'payment', label: 'Review & Pay', icon: CreditCard },
 ];
 
-const ALTERATION_OPTIONS = [
-  { id: 'button', name: 'Button Replacement / Stitching', price: 30, unit: 'piece', desc: 'Secure loose or missing buttons' },
-  { id: 'hemming', name: 'Pant / Trouser Length Hemming', price: 99, unit: 'pair', desc: 'Shorten or re-stitch pants length' },
-  { id: 'zipper', name: 'Zipper Repair & Slider Replacement', price: 120, unit: 'garment', desc: 'Fix stuck or split zippers' },
-  { id: 'debobble', name: 'Fabric De-Bobble & Lint Shave', price: 80, unit: 'piece', desc: 'Restore woolens & knits' },
-  { id: 'seam', name: 'Seam Reinforce & Spot Mending', price: 60, unit: 'spot', desc: 'Mend pocket tears & split seams' },
-];
-
 export const BookingPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -111,13 +103,19 @@ export const BookingPage: React.FC = () => {
   }, [currentUser]);
 
   // Garment Alterations & Repairs State
-  const [alterations, setAlterations] = useState<{ [key: string]: number }>({
-    button: 0,
-    hemming: 0,
-    zipper: 0,
-    debobble: 0,
-    seam: 0,
-  });
+    const [alterations, setAlterations] = useState<{ [key: string]: number }>({});
+    const [alterationServices, setAlterationServices] = useState<AlterationService[]>([]);
+
+    // Initialize alterations state when alteration services load
+    React.useEffect(() => {
+      if (alterationServices.length > 0) {
+        const initialAlterations: { [key: string]: number } = {};
+        alterationServices.forEach(svc => {
+          initialAlterations[svc.id] = 0;
+        });
+        setAlterations(initialAlterations);
+      }
+    }, [alterationServices]);
 
   // Coupon & Loyalty
   const [couponCode, setCouponCode] = useState('');
@@ -159,37 +157,37 @@ export const BookingPage: React.FC = () => {
   }
 
   // Pricing calculations
-  const alterationsTotal = Object.entries(alterations).reduce((sum, [id, count]) => {
-    const opt = ALTERATION_OPTIONS.find((o) => o.id === id);
-    return sum + (opt ? opt.price * count : 0);
-  }, 0);
-  const garmentWashSubtotal = Math.round(activeService.base_price * weightKg);
-  const subtotal = garmentWashSubtotal + alterationsTotal;
-  const expressCharge = isExpress ? activeService.express_surcharge : 0;
-  const deliveryCharge = subtotal > 199 ? 0 : 40;
-  const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
-  const loyaltyDiscount = useLoyaltyPoints ? Math.min(subtotal, Math.floor(loyaltyAcc.balance / 100)) : 0;
-  const totalAmount = Math.max(0, subtotal + expressCharge + deliveryCharge - couponDiscount - loyaltyDiscount);
+    const alterationsTotal = Object.entries(alterations).reduce((sum, [id, count]) => {
+      const opt = alterationServices.find((o) => o.id === id);
+      return sum + (opt ? opt.price * count : 0);
+    }, 0);
+    const garmentWashSubtotal = Math.round(activeService.base_price * weightKg);
+    const subtotal = garmentWashSubtotal + alterationsTotal;
+    const expressCharge = isExpress ? activeService.express_surcharge : 0;
+    const deliveryCharge = subtotal > 199 ? 0 : 40;
+    const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
+    const loyaltyDiscount = useLoyaltyPoints ? Math.min(subtotal, Math.floor(loyaltyAcc.balance / 100)) : 0;
+    const totalAmount = Math.max(0, subtotal + expressCharge + deliveryCharge - couponDiscount - loyaltyDiscount);
 
   const handleApplyCoupon = async () => {
-      if (!couponCode) return;
-      try {
-        // Server-side coupon validation via RPC
-        const { data, error } = await supabase.rpc('validate_coupon', {
-          p_code: couponCode.toUpperCase(),
-          p_subtotal: subtotal
-        });
-        if (error) throw error;
-        if (data && data.valid) {
-          setAppliedCoupon({ code: couponCode.toUpperCase(), discount: data.discount });
-          showToast('Coupon applied!', 'success');
-        } else {
-          showToast(data?.error || 'Invalid coupon or criteria not met', 'error');
+        if (!couponCode) return;
+        try {
+          // Server-side coupon validation via RPC
+          const { data, error } = await supabase.rpc('validate_coupon', {
+            p_code: couponCode.toUpperCase(),
+            p_subtotal: subtotal
+          } as any);
+          if (error) throw error;
+          if (data && (data as any).valid) {
+            setAppliedCoupon({ code: couponCode.toUpperCase(), discount: (data as any).discount });
+            showToast('Coupon applied!', 'success');
+          } else {
+            showToast((data as any)?.error || 'Invalid coupon or criteria not met', 'error');
+          }
+        } catch (err: any) {
+          showToast(err.message || 'Error validating coupon', 'error');
         }
-      } catch (err: any) {
-        showToast(err.message || 'Error validating coupon', 'error');
-      }
-    };
+      };
 
   // Handle Save New Address
   const handleSaveNewAddress = async (e: React.FormEvent) => {
@@ -255,42 +253,43 @@ export const BookingPage: React.FC = () => {
     setPaymentModalVisible(true);
 
     try {
-      const chosenAlterations = Object.entries(alterations)
-        .filter(([, count]) => count > 0)
-        .map(([id, count]) => {
-          const opt = ALTERATION_OPTIONS.find((o) => o.id === id)!;
-          return {
-            id,
-            name: opt.name,
-            price: opt.price,
-            quantity: count,
-            unit: opt.unit,
-          };
-        });
+          const chosenAlterations = Object.entries(alterations)
+            .filter(([, count]) => count > 0)
+            .map(([id, count]) => {
+              const opt = alterationServices.find((o) => o.id === id);
+              return {
+                id,
+                name: opt?.name || '',
+                price: opt?.price || 0,
+                quantity: count,
+                unit: opt?.unit || 'piece',
+              };
+            });
 
       const newOrderData = {
-        user_id: currentUser.id,
-        address: chosenAddress,
-        items: [
-          {
-            service_id: activeService.id,
-            quantity: 1,
-            weight: weightKg,
-            unit_price: activeService.base_price,
-            total_price: garmentWashSubtotal,
-          },
-        ],
-        subtotal,
-        discount_amount: couponDiscount + loyaltyDiscount,
-        delivery_charge: deliveryCharge,
-        express_surcharge: expressCharge,
-        total_amount: totalAmount,
-        payment_status: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
-        payment_method: paymentMethod,
-        pickup_slot_date: pickupDate,
-        pickup_slot_time: pickupSlot,
-        notes: specialInstructions + (chosenAlterations.length > 0 ? ' | Alterations: ' + chosenAlterations.map(a => `${a.name} x${a.quantity}`).join(', ') : ''),
-      };
+              user_id: currentUser.id,
+              address: chosenAddress,
+              items: [
+                {
+                  service_id: activeService.id,
+                  quantity: 1,
+                  weight: weightKg,
+                  unit_price: activeService.base_price,
+                  total_price: garmentWashSubtotal,
+                },
+              ],
+              subtotal,
+              discount_amount: couponDiscount + loyaltyDiscount,
+              delivery_charge: deliveryCharge,
+              express_surcharge: expressCharge,
+              total_amount: totalAmount,
+              payment_status: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
+              payment_method: paymentMethod,
+              pickup_slot_date: pickupDate,
+              pickup_slot_time: pickupSlot,
+              notes: specialInstructions + (chosenAlterations.length > 0 ? ' | Alterations: ' + chosenAlterations.map(a => `${a.name} x${a.quantity}`).join(', ') : ''),
+              coupon_code: appliedCoupon?.code || undefined,
+            };
 
       // 2. Perform the next work: record order in DB, assign dispatch & generate PIN
       const result = await orderService.createOrder(newOrderData);
@@ -590,14 +589,14 @@ export const BookingPage: React.FC = () => {
                 </div>
 
                 <input
-                  type="range"
-                  min={1}
-                  max={20}
-                  step={0.5}
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(parseFloat(e.target.value))}
-                  className="w-full accent-slate-900 h-2 bg-slate-200 rounded-lg cursor-pointer"
-                />
+                                  type="range"
+                                  min={1}
+                                  max={activeService.maximum_quantity || 20}
+                                  step={0.5}
+                                  value={weightKg}
+                                  onChange={(e) => setWeightKg(parseFloat(e.target.value))}
+                                  className="w-full accent-slate-900 h-2 bg-slate-200 rounded-lg cursor-pointer"
+                                />
 
                 {/* Quick Select Weight Preset Chips */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -654,9 +653,9 @@ export const BookingPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {ALTERATION_OPTIONS.map((opt) => {
-                    const count = alterations[opt.id] || 0;
-                    return (
+                                  {alterationServices.map((opt) => {
+                                    const count = alterations[opt.id] || 0;
+                                    return (
                       <div
                         key={opt.id}
                         className={`p-3.5 rounded-xl border transition-all flex items-center justify-between ${
@@ -664,9 +663,9 @@ export const BookingPage: React.FC = () => {
                         }`}
                       >
                         <div className="space-y-0.5 max-w-[200px]">
-                          <div className="text-xs font-semibold text-slate-900">{opt.name}</div>
-                          <div className="text-[11px] text-slate-500 leading-tight">{opt.desc}</div>
-                          <div className="text-xs font-mono font-medium text-slate-900 pt-0.5">
+                                                  <div className="text-xs font-semibold text-slate-900">{opt.name}</div>
+                                                  <div className="text-[11px] text-slate-500 leading-tight">{opt.description}</div>
+                                                  <div className="text-xs font-mono font-medium text-slate-900 pt-0.5">
                             +{formatCurrency(opt.price)}{' '}
                             <span className="font-normal text-[10px] text-slate-400">/{opt.unit}</span>
                           </div>
@@ -914,11 +913,11 @@ export const BookingPage: React.FC = () => {
               {(() => {
                 const chosenAddress = addresses.find((a) => a.id === selectedAddressId) || addresses[0];
                 const chosenAlterations = Object.entries(alterations)
-                  .filter(([, count]) => count > 0)
-                  .map(([id, count]) => {
-                    const opt = ALTERATION_OPTIONS.find((o) => o.id === id);
-                    return { id, name: opt?.name, count, price: opt?.price || 0 };
-                  });
+                                  .filter(([, count]) => count > 0)
+                                  .map(([id, count]) => {
+                                    const opt = alterationServices.find((o) => o.id === id);
+                                    return { id, name: opt?.name, count, price: opt?.price || 0 };
+                                  });
 
                 return (
                   <div className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-4">
