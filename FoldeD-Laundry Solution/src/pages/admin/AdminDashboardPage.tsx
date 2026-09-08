@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { StorageService } from '../../services/storage';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import type { OrderStatus, Service, SupportTicket } from '../../types';
 import { Card } from '../../components/ui/Card';
@@ -121,7 +120,7 @@ export const AdminDashboardPage: React.FC = () => {
       await orderService.updateOrderStatus(orderId, newStatus, 'Status overridden by Control Tower Admin', 'Admin');
       await loadData();
       showToast(`Order ${orderId} status set to ${newStatus}`, 'success');
-    } catch (e) {
+    } catch {
       showToast('Failed to update status', 'error');
     }
   };
@@ -136,7 +135,7 @@ export const AdminDashboardPage: React.FC = () => {
       setResolvingTicket(null);
       setResolutionNote('');
       showToast(`Ticket ${resolvingTicket.id} marked resolved`, 'success');
-    } catch (e) {
+    } catch {
       showToast('Failed to resolve ticket', 'error');
     }
   };
@@ -150,10 +149,18 @@ export const AdminDashboardPage: React.FC = () => {
       await loadData();
       setEditingService(null);
       showToast(`Updated price for ${editingService.name}`, 'success');
-    } catch (e) {
+    } catch {
       showToast('Failed to update price', 'error');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
@@ -573,9 +580,9 @@ export const AdminDashboardPage: React.FC = () => {
 
             <div className="divide-y divide-slate-100 text-xs">
               {serviceAreas.map((area) => (
-                <div key={area.postal_code} className="py-3 flex items-center justify-between">
+                <div key={area.pincode} className="py-3 flex items-center justify-between">
                   <div>
-                    <div className="font-bold font-mono text-sm text-ink">{area.postal_code}</div>
+                    <div className="font-bold font-mono text-sm text-ink">{area.pincode}</div>
                     <div className="text-slate-500">{area.area_name}, {area.city}</div>
                   </div>
 
@@ -583,10 +590,10 @@ export const AdminDashboardPage: React.FC = () => {
                     onClick={async () => {
                       try {
                         const { areaService } = await import('../../services/api/areaService');
-                        await areaService.toggleServiceArea(area.postal_code, !area.is_active);
+                        await areaService.toggleServiceArea(area.pincode, !area.is_active);
                         await loadData();
-                        showToast(`Service zone ${area.postal_code} updated`, 'info');
-                      } catch (e) {
+                        showToast(`Service zone ${area.pincode} updated`, 'info');
+                      } catch {
                         showToast('Failed to update service zone', 'error');
                       }
                     }}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { StorageService } from '../../services/storage';
 import { formatCurrency, generateBagId } from '../../utils/formatters';
 import type { Order, LaundryStage, QualityCheck } from '../../types';
 import { LAUNDRY_STAGES_ORDER, LAUNDRY_STAGE_NAMES } from '../../lib/constants';
@@ -71,24 +70,28 @@ export const StaffPortalPage: React.FC = () => {
   }, []);
 
   // Orders filtered by staff department
-  const pickupQueue = orders.filter(
-    (o) => o.status === 'ORDER_PLACED' || o.status === 'PICKUP_ASSIGNED' || o.status === 'PICKUP_STARTED'
+  const pickupQueue = orders.filter((o) =>
+    ['ORDER_PLACED', 'CONFIRMED', 'PICKUP_ASSIGNED', 'PICKUP_SCHEDULED', 'PICKUP_STARTED'].includes(o.status)
   );
 
-  const facilityOrders = orders.filter(
-    (o) =>
-      o.status === 'RECEIVED_AT_FACILITY' ||
-      o.status === 'SORTING' ||
-      o.status === 'WASHING' ||
-      o.status === 'DRYING' ||
-      o.status === 'IRONING_FOLDING' ||
-      o.status === 'QUALITY_CHECK' ||
-      o.status === 'READY_FOR_DELIVERY' ||
-      o.status === 'PICKED_UP'
+  const facilityOrders = orders.filter((o) =>
+    [
+      'RECEIVED_AT_FACILITY',
+      'PROCESSING',
+      'SORTING',
+      'WASHING',
+      'DRYING',
+      'IRONING',
+      'FOLDING',
+      'IRONING_FOLDING',
+      'QUALITY_CHECK',
+      'READY_FOR_DELIVERY',
+      'PICKED_UP',
+    ].includes(o.status)
   );
 
-  const deliveryQueue = orders.filter(
-    (o) => o.status === 'READY_FOR_DELIVERY' || o.status === 'DELIVERY_ASSIGNED' || o.status === 'OUT_FOR_DELIVERY'
+  const deliveryQueue = orders.filter((o) =>
+    ['READY_FOR_DELIVERY', 'DELIVERY_ASSIGNED', 'OUT_FOR_DELIVERY'].includes(o.status)
   );
 
   // Open Pickup Modal
@@ -117,7 +120,7 @@ export const StaffPortalPage: React.FC = () => {
       await loadData();
       setPickupModalOrder(null);
       showToast(`Order ${pickupModalOrder.id} picked up & checked in at facility!`, 'success');
-    } catch (err) {
+    } catch {
       showToast('Failed to confirm pickup', 'error');
     }
   };
@@ -132,7 +135,7 @@ export const StaffPortalPage: React.FC = () => {
         await orderService.advanceLaundryStage(orderId, nextStage);
         await loadData();
         showToast(`Order advanced to stage: ${nextStage}`, 'success');
-      } catch (err) {
+      } catch {
         showToast('Failed to advance stage', 'error');
       }
     }
@@ -154,7 +157,7 @@ export const StaffPortalPage: React.FC = () => {
       await loadData();
       setQcModalOrder(null);
       showToast(`Quality inspection certified for Order ${qcModalOrder.id}!`, 'success');
-    } catch (err) {
+    } catch {
       showToast('Failed to submit quality check', 'error');
     }
   };
@@ -176,10 +179,18 @@ export const StaffPortalPage: React.FC = () => {
       } else {
         setPinError(res.message);
       }
-    } catch (err) {
+    } catch {
       setPinError('Failed to verify PIN');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">

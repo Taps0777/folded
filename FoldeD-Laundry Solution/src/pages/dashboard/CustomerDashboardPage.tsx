@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../hooks/useApp';
 import { orderService } from '../../services/api/orderService';
 import { addressService } from '../../services/api/addressService';
-import { formatCurrency, formatDate, formatDateTime } from '../../utils/formatters';
+import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import type { Order, Address, SupportTicket, LoyaltyAccount } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -12,7 +12,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import {
-  Package, MapPin, Clock, ArrowRight, Receipt, Coins, Plus, Trash2, CheckCircle, HelpCircle, Loader2
+  Package, MapPin, Clock, ArrowRight, Receipt, Coins, Plus, Trash2, HelpCircle, Loader2
 } from 'lucide-react';
 
 export const CustomerDashboardPage: React.FC = () => {
@@ -100,7 +100,7 @@ export const CustomerDashboardPage: React.FC = () => {
         await orderService.updateOrderStatus(orderId, 'CANCELLED', 'Cancelled by customer', currentUser.id);
         await loadData();
         showToast('Order has been cancelled', 'info');
-      } catch (e) {
+      } catch {
         showToast('Failed to cancel order', 'error');
       }
     }
@@ -125,7 +125,7 @@ export const CustomerDashboardPage: React.FC = () => {
       setTicketModalOpen(false);
       setNewTicketForm({ subject: '', category: 'general', message: '', order_id: '' });
       showToast('Support ticket filed! Our team is on it.', 'success');
-    } catch (e) {
+    } catch {
       showToast('Failed to submit ticket', 'error');
     }
   };
@@ -556,6 +556,78 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
           <Button type="submit" variant="mint" className="w-full">Submit Ticket</Button>
         </form>
+      </Modal>
+
+      {/* INVOICE / RECEIPT MODAL */}
+      <Modal
+        isOpen={Boolean(receiptOrder)}
+        onClose={() => setReceiptOrder(null)}
+        title="Tax Invoice & Order Receipt"
+        description={receiptOrder ? `Order #${receiptOrder.id}` : ''}
+      >
+        {receiptOrder && (
+          <div className="space-y-5 text-left">
+            <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-100">
+              <div>
+                <span className="text-[11px] text-slate-400 block font-medium">Order Date</span>
+                <span className="text-xs font-semibold text-slate-800">{formatDateTime(receiptOrder.created_at)}</span>
+              </div>
+              <Badge variant={receiptOrder.status === 'DELIVERED' ? 'mint' : 'blue'}>
+                {receiptOrder.status.replace(/_/g, ' ')}
+              </Badge>
+            </div>
+
+            <div className="space-y-2 border-b border-slate-100 pb-3">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Service Items</span>
+              {receiptOrder.items.map((it, idx) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600">{it.service_name} x {it.quantity}</span>
+                  <span className="font-mono font-medium text-slate-900">{formatCurrency(it.total_price)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-1.5 text-xs border-b border-slate-100 pb-3 text-slate-600">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span className="font-mono">{formatCurrency(receiptOrder.subtotal)}</span>
+              </div>
+              {receiptOrder.discount_amount > 0 && (
+                <div className="flex justify-between text-emerald-600 font-medium">
+                  <span>Discount</span>
+                  <span className="font-mono">-{formatCurrency(receiptOrder.discount_amount)}</span>
+                </div>
+              )}
+              {receiptOrder.delivery_charge > 0 && (
+                <div className="flex justify-between">
+                  <span>Delivery Charge</span>
+                  <span className="font-mono">{formatCurrency(receiptOrder.delivery_charge)}</span>
+                </div>
+              )}
+              {receiptOrder.express_surcharge > 0 && (
+                <div className="flex justify-between">
+                  <span>Express Priority Fee</span>
+                  <span className="font-mono">{formatCurrency(receiptOrder.express_surcharge)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 text-sm font-bold text-slate-900">
+                <span>Total Paid</span>
+                <span className="font-mono text-base text-emerald-600">{formatCurrency(receiptOrder.total_amount)}</span>
+              </div>
+            </div>
+
+            {receiptOrder.delivery_pin && (
+              <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between items-center">
+                <span className="text-xs text-slate-300">Secure Delivery Handover PIN</span>
+                <span className="font-mono font-bold tracking-widest text-emerald-400 text-sm">{receiptOrder.delivery_pin}</span>
+              </div>
+            )}
+
+            <div className="text-[11px] text-slate-400 text-center">
+              FreshFold Laundry Services Pvt. Ltd. • GSTIN: 29AAFCS8712C1Z4
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

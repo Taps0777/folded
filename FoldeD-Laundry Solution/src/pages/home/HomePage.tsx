@@ -31,7 +31,6 @@ export const HomePage: React.FC = () => {
   
   const [services, setServices] = useState<any[]>([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -45,8 +44,6 @@ export const HomePage: React.FC = () => {
         setSubscriptionPlans(StorageService.getSubscriptions());
       } catch (e) {
         console.error(e);
-      } finally {
-        setIsLoading(false);
       }
     };
     loadData();
@@ -109,7 +106,7 @@ export const HomePage: React.FC = () => {
       } else {
         setPincodeResult({ checked: true, serviceable: false });
       }
-    } catch (e) {
+    } catch {
       showToast('Error checking pincode', 'error');
     }
   };
@@ -174,7 +171,7 @@ export const HomePage: React.FC = () => {
       });
       showToast(`Enterprise quote initiated for ${b2bForm.companyName}! Our commercial desk will contact ${b2bForm.email} within 2 business hours.`, 'success');
       setB2bModalOpen(false);
-    } catch (err) {
+    } catch {
       showToast('Failed to submit inquiry. Please try again.', 'error');
     }
   };
@@ -252,7 +249,7 @@ export const HomePage: React.FC = () => {
                           } else {
                             setPincodeResult({ checked: true, serviceable: false });
                           }
-                        } catch (e) {
+                        } catch {
                           showToast('Error checking pincode', 'error');
                         }
                       }}
@@ -737,7 +734,7 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 <ul className="space-y-2.5 text-xs text-slate-600">
-                  {plan.features.map((feat, i) => (
+                  {plan.features.map((feat: string, i: number) => (
                     <li key={i} className="flex items-start gap-2.5">
                       <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                       <span>{feat}</span>

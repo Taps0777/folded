@@ -2,22 +2,31 @@ export type UserRole = 'customer' | 'pickup_staff' | 'laundry_staff' | 'delivery
 
 export type OrderStatus =
   | 'ORDER_PLACED'
+  | 'CONFIRMED'
+  | 'PENDING_PAYMENT'
   | 'PICKUP_ASSIGNED'
+  | 'PICKUP_SCHEDULED'
   | 'PICKUP_STARTED'
   | 'PICKED_UP'
   | 'RECEIVED_AT_FACILITY'
+  | 'PROCESSING'
   | 'SORTING'
   | 'WASHING'
   | 'DRYING'
+  | 'IRONING'
+  | 'FOLDING'
   | 'IRONING_FOLDING'
   | 'QUALITY_CHECK'
   | 'READY_FOR_DELIVERY'
   | 'DELIVERY_ASSIGNED'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
+  | 'COMPLETED'
   | 'CANCELLED'
   | 'FAILED_PICKUP'
+  | 'DELIVERY_FAILED'
   | 'ON_HOLD'
+  | 'REFUND_PENDING'
   | 'REFUNDED';
 
 export type LaundryStage =

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import type { Order, OrderStatus, OrderStatusHistoryItem } from '../../types';
+import type { Order, OrderStatus } from '../../types';
 
 export const orderService = {
   async getAllOrders(): Promise<Order[]> {
@@ -9,6 +9,8 @@ export const orderService = {
         *,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
+        customer:profiles!orders_customer_id_fkey(full_name, phone),
+        service:services!orders_service_id_fkey(name),
         history:order_status_history(*)
       `)
       .order('created_at', { ascending: false });
@@ -43,6 +45,8 @@ export const orderService = {
         *,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
+        customer:profiles!orders_customer_id_fkey(full_name, phone),
+        service:services!orders_service_id_fkey(name),
         history:order_status_history(*)
       `)
       .eq('customer_id', userId)
@@ -60,6 +64,8 @@ export const orderService = {
         *,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
+        customer:profiles!orders_customer_id_fkey(full_name, phone),
+        service:services!orders_service_id_fkey(name),
         history:order_status_history(*)
       `)
       .eq('id', orderId)
@@ -116,12 +122,12 @@ export const orderService = {
       return { success: false, message: 'Invalid 4-digit PIN' };
     }
     
-    await this.updateOrderStatus(orderId, 'DELIVERED', 'Delivery verified with PIN', 'Delivery Agent');
+    await this.updateOrderStatus(orderId, 'DELIVERED', 'Delivery verified with PIN');
     return { success: true, message: 'PIN Verified' };
   },
 
-  async updateOrderStatus(orderId: string, newStatus: OrderStatus, reason?: string, actorId?: string) {
-    const { data, error } = await supabase.rpc('update_order_status', {
+  async updateOrderStatus(orderId: string, newStatus: OrderStatus, reason?: string, _actorId?: string) {
+    const { error } = await supabase.rpc('update_order_status', {
       p_order_id: orderId,
       p_new_status: newStatus,
       p_reason: reason || null,
@@ -137,8 +143,8 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
   return {
     id: dbData.id,
     user_id: dbData.customer_id,
-    customer_name: dbData.customer_name || 'Customer',
-    customer_phone: dbData.customer_phone || '',
+    customer_name: dbData.customer?.full_name || dbData.customer_name || 'Customer',
+    customer_phone: dbData.customer?.phone || dbData.customer_phone || '',
     address: {
       id: dbData.address?.id || '',
       user_id: dbData.address?.user_id || '',
@@ -155,7 +161,7 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
     items: (dbData.items || []).map((i: any) => ({
       id: i.id,
       service_id: i.item_id || 'dummy',
-      service_name: i.service_name || 'Laundry Service', // Ideally fetch from items
+      service_name: dbData.service?.name || i.service_name || 'Wash & Fold',
       quantity: i.quantity,
       unit_price: i.unit_price,
       total_price: i.total_price
@@ -172,7 +178,7 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
     pickup_slot_date: dbData.pickup_date || '',
     pickup_slot_time: dbData.pickup_time_slot || '',
     estimated_delivery: dbData.estimated_delivery_at || '',
-    delivery_pin: '1234', // Generate this
+    delivery_pin: dbData.delivery_pin || '1234',
     created_at: dbData.created_at,
     updated_at: dbData.updated_at,
     history: (dbData.history || []).map((h: any) => ({
@@ -181,6 +187,11 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
       timestamp: h.timestamp,
       note: h.reason,
       actor: h.changed_by
-    }))
+    })),
+    bag_id: dbData.bag_id,
+    measured_weight_kg: dbData.measured_weight_kg,
+    laundry_stage: dbData.laundry_stage,
+    quality_check: dbData.quality_check,
+    alterations: dbData.alterations,
   };
 }

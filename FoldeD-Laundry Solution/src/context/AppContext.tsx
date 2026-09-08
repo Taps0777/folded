@@ -38,7 +38,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     loadSession();
 
-    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, _session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         const profile = await authService.getCurrentProfile();
         setCurrentUser(profile);

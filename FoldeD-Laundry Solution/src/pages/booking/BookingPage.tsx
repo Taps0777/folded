@@ -5,7 +5,9 @@ import { serviceService } from '../../services/api/serviceService';
 import { addressService } from '../../services/api/addressService';
 import { orderService } from '../../services/api/orderService';
 import { formatCurrency } from '../../utils/formatters';
-import type { Service, PaymentMethod } from '../../types';
+import { supabase } from '../../lib/supabase';
+import { alterationService } from '../../services/api/alterationService';
+import type { Service, PaymentMethod, AlterationService } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
@@ -72,26 +74,31 @@ export const BookingPage: React.FC = () => {
   const [pickupSlot, setPickupSlot] = useState('10:00 AM - 12:00 PM');
   const [isExpress, setIsExpress] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
 
   React.useEffect(() => {
-    const init = async () => {
-      try {
-        const srvs = await serviceService.getAllServices();
-        setServices(srvs);
-        if (srvs.length > 0 && !selectedServiceId) {
-          setSelectedServiceId(srvs[0].id);
-        }
+      const init = async () => {
+        try {
+          const srvs = await serviceService.getAllServices();
+          setServices(srvs);
+          if (srvs.length > 0) {
+            setSelectedServiceId((prev) => prev || srvs[0].id);
+          }
 
-        if (currentUser) {
-          const [addrs, loyalty] = await Promise.all([
-            addressService.getAddressesByUser(currentUser.id),
-            import('../../services/api/loyaltyService').then(m => m.loyaltyService.getAccount(currentUser.id))
-          ]);
-          setAddresses(addrs);
-          if (loyalty) setLoyaltyAcc(loyalty);
-          if (addrs.length > 0 && !selectedAddressId) {
+          // Fetch alteration services from DB
+          const alterations = await alterationService.getAllAlterations();
+          setAlterationServices(alterations);
+
+          if (currentUser) {
+            const [addrs, loyalty] = await Promise.all([
+              addressService.getAddressesByUser(currentUser.id),
+              import('../../services/api/loyaltyService').then(m => m.loyaltyService.getAccount(currentUser.id))
+            ]);
+            setAddresses(addrs);
+            if (loyalty) setLoyaltyAcc(loyalty);
+          if (addrs.length > 0) {
             const defaultAddr = addrs.find((a: any) => a.is_default) || addrs[0];
-            setSelectedAddressId(defaultAddr.id);
+            setSelectedAddressId((prev) => prev || defaultAddr.id);
           }
         }
       } catch (err) {
@@ -102,7 +109,6 @@ export const BookingPage: React.FC = () => {
     };
     init();
   }, [currentUser]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
 
   // Garment Alterations & Repairs State
   const [alterations, setAlterations] = useState<{ [key: string]: number }>({
@@ -165,20 +171,25 @@ export const BookingPage: React.FC = () => {
   const loyaltyDiscount = useLoyaltyPoints ? Math.min(subtotal, Math.floor(loyaltyAcc.balance / 100)) : 0;
   const totalAmount = Math.max(0, subtotal + expressCharge + deliveryCharge - couponDiscount - loyaltyDiscount);
 
-  // Handle Coupon Apply
-  const handleApplyCoupon = () => {
-    if (!couponCode) return;
-    // Stub validation
-    if (couponCode === 'FRESH50' && subtotal >= 199) {
-      setAppliedCoupon({ code: couponCode.toUpperCase(), discount: 50 });
-      showToast('Coupon applied!', 'success');
-    } else if (couponCode === 'CLEAN100' && subtotal >= 199) {
-      setAppliedCoupon({ code: couponCode.toUpperCase(), discount: 100 });
-      showToast('Coupon applied!', 'success');
-    } else {
-      showToast('Invalid coupon or criteria not met', 'error');
-    }
-  };
+  const handleApplyCoupon = async () => {
+      if (!couponCode) return;
+      try {
+        // Server-side coupon validation via RPC
+        const { data, error } = await supabase.rpc('validate_coupon', {
+          p_code: couponCode.toUpperCase(),
+          p_subtotal: subtotal
+        });
+        if (error) throw error;
+        if (data && data.valid) {
+          setAppliedCoupon({ code: couponCode.toUpperCase(), discount: data.discount });
+          showToast('Coupon applied!', 'success');
+        } else {
+          showToast(data?.error || 'Invalid coupon or criteria not met', 'error');
+        }
+      } catch (err: any) {
+        showToast(err.message || 'Error validating coupon', 'error');
+      }
+    };
 
   // Handle Save New Address
   const handleSaveNewAddress = async (e: React.FormEvent) => {
@@ -277,6 +288,7 @@ export const BookingPage: React.FC = () => {
         payment_status: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
         payment_method: paymentMethod,
         pickup_slot_date: pickupDate,
+        pickup_slot_time: pickupSlot,
         notes: specialInstructions + (chosenAlterations.length > 0 ? ' | Alterations: ' + chosenAlterations.map(a => `${a.name} x${a.quantity}`).join(', ') : ''),
       };
 

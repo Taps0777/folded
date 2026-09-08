@@ -1,12 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
-
-// Admin client using service role key (if available) - we don't have it, so we can't easily clean up or bypass RLS from node without it.
-// Wait, we DO NOT have the service_role key in .env.local because I only fetched the anon/publishable keys!
-// Let's just create regular clients and test what they can do.
 
 const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const customer1Client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -39,19 +35,22 @@ describe('RBAC Security Tests', () => {
   });
 
   it('Customer 1 should be able to read their own profile', async () => {
+    expect(customer1User).not.toBeNull();
     const { data, error } = await customer1Client.from('profiles').select('*').eq('id', customer1User.id).single();
     expect(error).toBeNull();
     expect(data.id).toBe(customer1User.id);
   });
 
   it('Customer 1 should NOT be able to read Customer 2 profile', async () => {
-    const { data, error } = await customer1Client.from('profiles').select('*').eq('id', customer2User.id).maybeSingle();
+    expect(customer2User).not.toBeNull();
+    const { data } = await customer1Client.from('profiles').select('*').eq('id', customer2User.id).maybeSingle();
     // Due to RLS, no rows returned is standard, or an error.
     expect(data).toBeNull();
   });
 
   it('Anonymous client should NOT be able to read any profiles', async () => {
-    const { data, error } = await supabaseAnon.from('profiles').select('*').limit(1);
+    const { data } = await supabaseAnon.from('profiles').select('*').limit(1);
     expect(data?.length).toBe(0);
   });
 });
+

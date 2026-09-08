@@ -45,7 +45,7 @@ serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
       // Call our secure RPC to update the payment status, which handles row locking and idempotency
-      const { data, error } = await supabase.rpc('process_payment_webhook', {
+      const { error } = await supabase.rpc('process_payment_webhook', {
         p_transaction_id: paymentData.id,
         p_order_id: paymentData.notes.order_id, // assuming we pass order_id in notes
         p_amount: paymentData.amount / 100 // convert back to INR
