@@ -139,7 +139,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               </span>
             </div>
             <span className={cn('font-mono text-slate-900', item.color)}>
-              {item.customValue || `${item.prefix || ''}${formatCurrency(item.amount)}`}
+              {item.customValue || `${item.prefix || ''}{formatCurrency(item.amount)}`}
             </span>
           </div>
         ))}

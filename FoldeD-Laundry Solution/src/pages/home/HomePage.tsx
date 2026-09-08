@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { TrustBadges, InlineTrustBadges } from '../../components/ui/TrustBadges';
+import { InlineTrustBadges } from '../../components/ui/TrustBadges';
 import { ServiceCard } from '../../components/ui/ServiceCard';
 import {
   Sparkles,
@@ -25,6 +25,10 @@ import {
   Briefcase,
   FileText,
   Percent,
+  Zap,
+  Gem,
+  Crown,
+  Leaf,
 } from 'lucide-react';
 
 // Service categories with icons and fabric types

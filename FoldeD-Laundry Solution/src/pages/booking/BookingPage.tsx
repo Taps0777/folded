@@ -27,7 +27,6 @@ import {
   Scissors,
   CheckCircle2,
   ArrowRight,
-  ArrowLeft,
   Zap,
   Plus,
   Check,
@@ -39,6 +38,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Minus,
+  Gem,
+  Crown,
+  Leaf,
 } from 'lucide-react';
 
 const STEPS = [

@@ -12,7 +12,6 @@ import { Modal } from '../../components/ui/Modal';
 import { PriceBreakdown } from '../../components/ui/PriceBreakdown';
 import {
   ArrowLeft,
-  ShieldCheck,
   Package,
   Navigation,
   Lock,
@@ -24,18 +23,14 @@ import {
   Play,
   RotateCcw,
   MapPin,
-  Truck,
   Clock,
   CheckCircle,
-  User,
-  Star,
-  Map,
   Activity,
   Wifi,
-  AlertCircle,
-  RefreshCw,
   MessageSquare,
-  ExternalLink,
+  ArrowRight,
+  X,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const OrderTrackingPage: React.FC = () => {

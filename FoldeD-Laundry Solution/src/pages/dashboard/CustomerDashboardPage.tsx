@@ -17,7 +17,7 @@ import {
   TrendingUp, TrendingDown, Target, Award, BarChart, DollarSign, Shield, Star,
   RotateCcw, Download, Eye, Edit, MapPin as MapPinIcon, Calendar, CheckCircle2, AlertCircle,
   Lock as LockIcon,
-  Tag as TagIcon
+  Tag
 } from 'lucide-react';
 
 // Background pattern SVG as constant to avoid escaping issues
@@ -37,11 +37,18 @@ export const CustomerDashboardPage: React.FC = () => {
   // Modal States
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
-  const [newTicketForm, setNewTicketForm] = useState({
+  const [newTicketForm, setNewTicketForm] = useState<{
+    subject: string;
+    category: SupportTicket['category'];
+    message: string;
+    order_id: string;
+    priority: 'low' | 'medium' | 'high';
+  }>({
     subject: '',
-    category: 'general' as SupportTicket['category'],
+    category: 'general',
     message: '',
     order_id: '',
+    priority: 'medium',
   });
 
   // Analytics State
@@ -193,7 +200,7 @@ export const CustomerDashboardPage: React.FC = () => {
       });
       await loadData();
       setTicketModalOpen(false);
-      setNewTicketForm({ subject: '', category: 'general', message: '', order_id: '' });
+      setNewTicketForm({ subject: '', category: 'general', message: '', order_id: '', priority: 'medium' });
       showToast('Support ticket filed! Our team is on it.', 'success');
     } catch {
       showToast('Failed to submit ticket', 'error');
@@ -336,21 +343,21 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
         </div>
         <div className="h-48 flex items-end justify-between gap-2 px-2">
-          {analytics.monthlySpending.map((item, idx) => (
-            <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-              <div 
-                className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t transition-all duration-500 hover:from-emerald-600 hover:to-emerald-500"
-                style={{ 
-                  height: analytics.monthlySpending.length > 0 
-                    ? `${Math.max(5, (item.amount / Math.max(...analytics.monthlySpending.map(m => m.amount), 1)) * 95)}%` 
-                    : '5%' 
-                }}
-                title={`${item.month}: ${formatCurrency(item.amount)}`}
-              />
-              <span className="text-[10px] text-slate-500 font-medium">{item.month}</span>
-            </div>
-          ))}
-        </div>
+                  {analytics.monthlySpending.map((item) => (
+                    <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
+                      <div 
+                        className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t transition-all duration-500 hover:from-emerald-600 hover:to-emerald-500"
+                        style={{ 
+                          height: analytics.monthlySpending.length > 0 
+                            ? `${Math.max(5, (item.amount / Math.max(...analytics.monthlySpending.map(m => m.amount), 1)) * 95)}%` 
+                            : '5%' 
+                        }}
+                      title={`${item.month}: ${formatCurrency(item.amount)}`}
+                      />
+                      <span className="text-[10px] text-slate-500 font-medium">{item.month}</span>
+                    </div>
+                  ))}
+                </div>
       </Card>
 
       {/* Active Order Spotlight Banner */}
@@ -517,7 +524,7 @@ export const CustomerDashboardPage: React.FC = () => {
                           order.status === 'DELIVERED'
                             ? 'mint'
                             : order.status === 'CANCELLED'
-                            ? 'rose'
+                            ? 'coral'
                             : 'blue'
                         }
                       >
