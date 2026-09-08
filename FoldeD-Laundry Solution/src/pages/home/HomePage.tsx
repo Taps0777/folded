@@ -7,6 +7,8 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { TrustBadges, InlineTrustBadges } from '../../components/ui/TrustBadges';
+import { ServiceCard } from '../../components/ui/ServiceCard';
 import {
   Sparkles,
   Truck,
@@ -24,6 +26,16 @@ import {
   FileText,
   Percent,
 } from 'lucide-react';
+
+// Service categories with icons and fabric types
+const SERVICE_CATEGORIES: Record<string, { icon: React.ReactNode; fabricTypes: string[] }> = {
+  wash_fold: { icon: <Sparkles className="w-5 h-5" />, fabricTypes: ['cotton', 'casual', 'denim', 'linen', 'towels'] },
+  wash_iron: { icon: <Zap className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'formal', 'casual'] },
+  iron_only: { icon: <Zap className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'formal', 'silk'] },
+  dry_clean: { icon: <Gem className="w-5 h-5" />, fabricTypes: ['silk', 'wool', 'formal', 'delicate', 'curtains'] },
+  premium_care: { icon: <Crown className="w-5 h-5" />, fabricTypes: ['silk', 'wool', 'cashmere', 'delicate', 'formal'] },
+  spa: { icon: <Leaf className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'towels', 'bedding'] },
+};
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -291,18 +303,8 @@ export const HomePage: React.FC = () => {
                 </a>
               </div>
 
-              {/* Trust Badges */}
-              <div className="pt-3 flex flex-wrap items-center gap-5 text-xs font-medium text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Zero Delivery Fees &gt; ₹199
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> 7-Point Quality Guarantee
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Tamper-Proof Sealed Bags
-                </span>
-              </div>
+              {/* Trust Badges - using new component */}
+              <InlineTrustBadges count={4} className="justify-start" />
             </div>
 
             {/* Right Hero Visual Card */}
@@ -648,48 +650,22 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((srv) => (
-            <div
-              key={srv.id}
-              className="p-6 rounded-2xl bg-white border border-slate-200/80 flex flex-col justify-between hover:border-slate-300 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] group"
-            >
-              <div className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-700 flex items-center justify-center">
-                    <Shirt className="w-5 h-5" />
-                  </div>
-                  {srv.tag && (
-                    <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                      {srv.tag}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">{srv.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{srv.description}</p>
-                </div>
-              </div>
-
-              <div className="pt-5 border-t border-slate-100 mt-6 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400 block">Starting from</span>
-                  <span className="text-xl font-semibold font-mono text-slate-900">
-                    {formatCurrency(srv.base_price)}
-                    <span className="text-xs font-normal text-slate-400">
-                      /{srv.pricing_type === 'per_kg' ? 'kg' : 'item'}
-                    </span>
-                  </span>
-                </div>
-                <Link to="/booking" state={{ preselectedServiceId: srv.id }}>
-                  <Button variant="secondary" size="sm" className="gap-1 text-xs">
-                    Book This
-                    <ArrowRight className="w-3 h-3" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          ))}
+          {services.map((srv) => {
+            const categoryInfo = SERVICE_CATEGORIES[srv.category] || { icon: <Sparkles className="w-5 h-5" />, fabricTypes: ['cotton', 'casual'] };
+            
+            return (
+              <ServiceCard
+                key={srv.id}
+                service={{
+                  ...srv,
+                  ...categoryInfo,
+                }}
+                isSelected={false}
+                onSelect={() => navigate('/booking', { state: { preselectedServiceId: srv.id } })}
+                formatCurrency={formatCurrency}
+              />
+            );
+          })}
         </div>
       </section>
 
@@ -762,9 +738,9 @@ export const HomePage: React.FC = () => {
       {/* B2B Commercial & Bulk Order Calculator */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-          <Badge variant="slate">FreshFold Commercial &amp; Enterprise</Badge>
+          <Badge variant="slate">FreshFold Commercial & Enterprise</Badge>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
-            B2B Bulk Laundry &amp; Linen Calculator
+            B2B Bulk Laundry & Linen Calculator
           </h2>
           <p className="text-slate-500 text-sm sm:text-base">
             High-capacity commercial laundry solutions for hospitality, fitness centers, salons, and corporate offices with dedicated route vans and volume-tiered savings.
@@ -773,14 +749,12 @@ export const HomePage: React.FC = () => {
 
         {/* Sector Tabs */}
         <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {(
-            [
-              { key: 'hospitality', label: 'Hotels & Airbnbs', icon: Building2 },
-              { key: 'gyms', label: 'Gyms & Fitness', icon: Sparkles },
-              { key: 'salons', label: 'Salons & Spas', icon: Shirt },
-              { key: 'corporate', label: 'Corporate & Uniforms', icon: Briefcase },
-            ] as const
-          ).map((sector) => {
+          {([
+            { key: 'hospitality', label: 'Hotels & Airbnbs', icon: Building2 },
+            { key: 'gyms', label: 'Gyms & Fitness', icon: Sparkles },
+            { key: 'salons', label: 'Salons & Spas', icon: Shirt },
+            { key: 'corporate', label: 'Corporate & Uniforms', icon: Briefcase },
+          ] as const).map((sector) => {
             const Icon = sector.icon;
             const isSelected = b2bSector === sector.key;
             return (

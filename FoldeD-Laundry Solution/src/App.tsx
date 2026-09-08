@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { HomePage } from './pages/home/HomePage';
@@ -22,27 +23,29 @@ const ScrollToTop: React.FC = () => {
 
 function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <div className="min-h-screen flex flex-col bg-[#FBFBFD] text-slate-900 selection:bg-emerald-500 selection:text-white">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/booking" element={<BookingPage />} />
-              <Route path="/dashboard" element={<CustomerDashboardPage />} />
-              <Route path="/track/:orderId" element={<OrderTrackingPage />} />
-              <Route path="/staff" element={<StaffPortalPage />} />
-              <Route path="/admin" element={<AdminDashboardPage />} />
-              <Route path="*" element={<HomePage />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </BrowserRouter>
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <div className="min-h-screen flex flex-col bg-cream text-ink selection:bg-mint-soft selection:text-mint-dark dark:bg-ink dark:text-cream">
+            <Navbar />
+            <main className="flex-1">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/booking" element={<BookingPage />} />
+                <Route path="/dashboard" element={<CustomerDashboardPage />} />
+                <Route path="/track/:orderId" element={<OrderTrackingPage />} />
+                <Route path="/staff" element={<StaffPortalPage />} />
+                <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="*" element={<HomePage />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </BrowserRouter>
+      </AppProvider>
+    </ThemeProvider>
   );
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../../hooks/useApp';
 import { authService } from '../../services/api/authService';
+import { useTheme } from '../../context/ThemeContext';
 import type { UserRole } from '../../types';
 import { ROLE_LABELS } from '../../lib/constants';
 import {
@@ -15,10 +16,13 @@ import {
   User,
   LogIn,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { currentRole, setCurrentRole, currentUser } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
@@ -41,15 +45,15 @@ export const Navbar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-200/70 transition-colors">
+    <header className="sticky top-0 z-40 w-full bg-cream/85 backdrop-blur-md border-b border-slate-200/70 dark:bg-ink/85 dark:border-slate-800/70 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform dark:bg-cream">
             <Sparkles className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="font-display font-semibold text-lg tracking-tight text-slate-900">
+            <span className="font-display font-semibold text-lg tracking-tight text-slate-900 dark:text-cream">
               FreshFold
             </span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -57,20 +61,20 @@ export const Navbar: React.FC = () => {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 text-xs font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400">
           <Link
             to="/"
             className={`px-3 py-1.5 rounded-full transition-colors ${
               isActive('/')
-                ? 'text-slate-900 font-semibold bg-slate-100'
-                : 'hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
             }`}
           >
             Home
           </Link>
           <a
             href="/#calculator"
-            className="px-3 py-1.5 rounded-full hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            className="px-3 py-1.5 rounded-full hover:text-slate-900 hover:bg-slate-50 transition-colors dark:hover:text-cream dark:hover:bg-slate-800"
           >
             Services & Pricing
           </a>
@@ -78,8 +82,8 @@ export const Navbar: React.FC = () => {
             to="/booking"
             className={`px-3 py-1.5 rounded-full transition-colors ${
               isActive('/booking')
-                ? 'text-slate-900 font-semibold bg-slate-100'
-                : 'hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
             }`}
           >
             Book Pickup
@@ -88,8 +92,8 @@ export const Navbar: React.FC = () => {
             to="/dashboard"
             className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
               isActive('/dashboard')
-                ? 'text-slate-900 font-semibold bg-slate-100'
-                : 'hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
             }`}
           >
             <span>My Orders</span>
@@ -103,22 +107,22 @@ export const Navbar: React.FC = () => {
             to="/staff"
             className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
               isActive('/staff')
-                ? 'text-slate-900 font-semibold bg-slate-100'
-                : 'hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
             }`}
           >
-            <Truck className="w-3.5 h-3.5 text-slate-400" />
+            <Truck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             <span>Staff Portal</span>
           </Link>
           <Link
             to="/admin"
             className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors ${
               isActive('/admin')
-                ? 'text-slate-900 font-semibold bg-slate-100'
-                : 'hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-slate-900 font-semibold bg-slate-100 dark:text-cream dark:bg-slate-800'
+                : 'hover:text-slate-900 hover:bg-slate-50 dark:hover:text-cream dark:hover:bg-slate-800'
             }`}
           >
-            <Shield className="w-3.5 h-3.5 text-slate-400" />
+            <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             <span>Admin</span>
           </Link>
         </nav>
@@ -129,50 +133,49 @@ export const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium transition-colors border border-slate-200/60"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium transition-colors border border-slate-200/60 dark:bg-slate-800 dark:hover:bg-slate-700/70 dark:text-slate-200 dark:border-slate-700/60"
                 title="Account menu"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="max-w-[110px] truncate">{currentUser.full_name || currentUser.email}</span>
-                <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded dark:text-emerald-400 dark:bg-emerald-900/30">
                   {currentUser.role}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-500" />
               </button>
 
               {roleDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-2 z-50 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-2 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name || 'Active User'}</p>
+                <div className="absolute right-0 mt-2 w-64 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-2 z-50 animate-in fade-in zoom-in-95 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700/80">
+                  <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-700">
+                    <p className="text-xs font-bold text-slate-900 truncate dark:text-cream">{currentUser.full_name || 'Active User'}</p>
                     <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
                   </div>
-                  
                   <div className="py-1">
                     <Link
                       to={currentUser.role === 'admin' ? '/admin' : currentUser.role === 'customer' ? '/dashboard' : '/staff'}
                       onClick={() => setRoleDropdownOpen(false)}
-                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700"
+                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700 dark:hover:bg-slate-700/50 dark:text-slate-200"
                     >
-                      <User className="w-3.5 h-3.5 text-slate-400" />
+                      <User className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                       <span>Go to Dashboard</span>
                     </Link>
                     <Link
                       to="/login"
                       onClick={() => setRoleDropdownOpen(false)}
-                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700"
+                      className="w-full text-left px-3.5 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors text-slate-700 dark:hover:bg-slate-700/50 dark:text-slate-200"
                     >
-                      <Shield className="w-3.5 h-3.5 text-slate-400" />
+                      <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                       <span>Switch Account / Demo Logins</span>
                     </Link>
                   </div>
 
-                  <div className="pt-1.5 border-t border-slate-100 px-3.5 py-1.5 flex justify-between items-center text-[11px]">
+                  <div className="pt-1.5 border-t border-slate-100 px-3.5 py-1.5 flex justify-between items-center text-[11px] dark:border-slate-700">
                     <button
                       onClick={async () => {
                         setRoleDropdownOpen(false);
                         await authService.signOut();
                       }}
-                      className="text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5 transition-colors"
+                      className="text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1.5 transition-colors dark:text-rose-400 dark:hover:text-rose-300"
                     >
                       <LogOut className="w-3 h-3" />
                       Sign Out
@@ -185,9 +188,9 @@ export const Navbar: React.FC = () => {
             <div className="flex items-center gap-2">
               <Link
                 to="/login"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium transition-colors border border-transparent hover:border-slate-200"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium transition-colors border border-transparent hover:border-slate-200 dark:text-slate-300 dark:hover:text-cream dark:hover:bg-slate-800"
               >
-                <LogIn className="w-3.5 h-3.5 text-slate-500" />
+                <LogIn className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 <span>Sign In</span>
               </Link>
 
@@ -195,17 +198,17 @@ export const Navbar: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-700 text-xs font-medium transition-colors border border-slate-200/60"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 text-slate-700 text-xs font-medium transition-colors border border-slate-200/60 dark:bg-slate-800 dark:hover:bg-slate-700/70 dark:text-slate-200 dark:border-slate-700/60"
                   title="Switch demo persona for testing"
                 >
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span>{ROLE_LABELS[currentRole]?.title}</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 </button>
 
                 {roleDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-60 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-1.5 z-50 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <div className="absolute right-0 mt-2 w-60 bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-200/80 py-1.5 z-50 animate-in fade-in zoom-in-95 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700/80">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
                       Switch Demo Persona
                     </div>
                     {rolesList.map((role) => (
@@ -216,18 +219,18 @@ export const Navbar: React.FC = () => {
                           setRoleDropdownOpen(false);
                         }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                          currentRole === role ? 'font-semibold text-emerald-700 bg-emerald-50/60' : 'text-slate-700'
+                          currentRole === role ? 'font-semibold text-emerald-700 bg-emerald-50/60 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'
                         }`}
                       >
                         <span>{ROLE_LABELS[role]?.title}</span>
-                        {currentRole === role && <span className="text-emerald-600 font-bold">✓</span>}
+                        {currentRole === role && <span className="text-emerald-600 font-bold dark:text-emerald-400">✓</span>}
                       </button>
                     ))}
-                    <div className="pt-1 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-400">
+                    <div className="pt-1 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-400 dark:border-slate-700">
                       <Link
                         to="/login"
                         onClick={() => setRoleDropdownOpen(false)}
-                        className="hover:text-emerald-600 flex items-center gap-1 transition-colors"
+                        className="hover:text-emerald-600 flex items-center gap-1 transition-colors dark:hover:text-emerald-400"
                       >
                         <Shield className="w-3 h-3" />
                         Live DB Logins
@@ -239,9 +242,23 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5" />
+            )}
+          </button>
+
           {/* Primary CTA: Obsidian Black */}
           <Link to="/booking">
-            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 text-xs font-medium shadow-xs transition-all active:scale-95">
+            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 text-xs font-medium shadow-xs transition-all active:scale-95 dark:bg-cream dark:hover:bg-slate-100 dark:text-ink">
               <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
               <span>Book Pickup</span>
             </button>
@@ -252,7 +269,7 @@ export const Navbar: React.FC = () => {
         <div className="flex sm:hidden items-center gap-2">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-slate-700 hover:bg-slate-100"
+            className="p-2 rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -262,57 +279,70 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-slate-200/80 bg-white px-4 pt-3 pb-6 space-y-2">
+        <div className="sm:hidden border-t border-slate-200/80 bg-white px-4 pt-3 pb-6 space-y-2 dark:border-slate-700/80 dark:bg-ink">
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
           >
             Home
           </Link>
           <Link
             to="/booking"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
           >
             Book Pickup
           </Link>
           <Link
             to="/dashboard"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
           >
             My Orders ({activeOrdersCount} Active)
           </Link>
           <Link
             to="/staff"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
           >
             Staff Operations
           </Link>
           <Link
             to="/admin"
             onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-xl text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-cream dark:hover:bg-slate-800"
           >
             Admin Operations Tower
           </Link>
 
+          {/* Mobile Theme Toggle */}
+          <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </span>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
+          </div>
+
           {/* Mobile Auth */}
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
             {currentUser ? (
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                 <div>
-                  <p className="text-xs font-semibold text-slate-800 truncate">{currentUser.full_name || currentUser.email}</p>
-                  <p className="text-[10px] text-emerald-600 font-bold uppercase">{currentUser.role}</p>
+                  <p className="text-xs font-semibold text-slate-800 truncate dark:text-cream">{currentUser.full_name || currentUser.email}</p>
+                  <p className="text-[10px] text-emerald-600 font-bold uppercase dark:text-emerald-400">{currentUser.role}</p>
                 </div>
                 <button
                   onClick={async () => {
                     setMobileMenuOpen(false);
                     await authService.signOut();
                   }}
-                  className="text-xs text-rose-600 font-medium px-2 py-1 rounded-lg hover:bg-rose-50"
+                  className="text-xs text-rose-600 font-medium px-2 py-1 rounded-lg hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/30"
                 >
                   Sign Out
                 </button>
@@ -321,7 +351,7 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold"
+                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold dark:bg-cream dark:text-ink"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 Sign In to Account
@@ -330,8 +360,8 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile Persona Switcher */}
-          <div className="pt-2 border-t border-slate-100">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 dark:text-slate-500">
               Viewing as
             </div>
             <div className="grid grid-cols-2 gap-1.5">
@@ -343,7 +373,7 @@ export const Navbar: React.FC = () => {
                     setMobileMenuOpen(false);
                   }}
                   className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-medium ${
-                    currentRole === role ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                    currentRole === role ? 'bg-slate-900 text-white dark:bg-cream dark:text-ink' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                   }`}
                 >
                   {ROLE_LABELS[role]?.title}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../hooks/useApp';
 import { serviceService } from '../../services/api/serviceService';
@@ -12,6 +12,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
+import { ServiceCard } from '../../components/ui/ServiceCard';
+import { TrustBadges, InlineTrustBadges } from '../../components/ui/TrustBadges';
+import { PriceBreakdown, StickyPriceBreakdown } from '../../components/ui/PriceBreakdown';
 import {
   Sparkles,
   Scale,
@@ -31,6 +34,11 @@ import {
   Coins,
   ShieldCheck,
   Lock,
+  Loader2,
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  Minus,
 } from 'lucide-react';
 
 const STEPS = [
@@ -40,6 +48,16 @@ const STEPS = [
   { id: 'address', label: 'Address', icon: MapPin },
   { id: 'payment', label: 'Review & Pay', icon: CreditCard },
 ];
+
+// Service categories with icons and fabric types
+const SERVICE_CATEGORIES: Record<string, { icon: React.ReactNode; fabricTypes: string[] }> = {
+  wash_fold: { icon: <Sparkles className="w-5 h-5" />, fabricTypes: ['cotton', 'casual', 'denim', 'linen', 'towels'] },
+  wash_iron: { icon: <Zap className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'formal', 'casual'] },
+  iron_only: { icon: <Zap className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'formal', 'silk'] },
+  dry_clean: { icon: <Gem className="w-5 h-5" />, fabricTypes: ['silk', 'wool', 'formal', 'delicate', 'curtains'] },
+  premium_care: { icon: <Crown className="w-5 h-5" />, fabricTypes: ['silk', 'wool', 'cashmere', 'delicate', 'formal'] },
+  spa: { icon: <Leaf className="w-5 h-5" />, fabricTypes: ['cotton', 'linen', 'towels', 'bedding'] },
+};
 
 export const BookingPage: React.FC = () => {
   const location = useLocation();
@@ -68,54 +86,9 @@ export const BookingPage: React.FC = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
 
-  React.useEffect(() => {
-      const init = async () => {
-        try {
-          const srvs = await serviceService.getAllServices();
-          setServices(srvs);
-          if (srvs.length > 0) {
-            setSelectedServiceId((prev) => prev || srvs[0].id);
-          }
-
-          // Fetch alteration services from DB
-          const alterations = await alterationService.getAllAlterations();
-          setAlterationServices(alterations);
-
-          if (currentUser) {
-            const [addrs, loyalty] = await Promise.all([
-              addressService.getAddressesByUser(currentUser.id),
-              import('../../services/api/loyaltyService').then(m => m.loyaltyService.getAccount(currentUser.id))
-            ]);
-            setAddresses(addrs);
-            if (loyalty) setLoyaltyAcc(loyalty);
-          if (addrs.length > 0) {
-            const defaultAddr = addrs.find((a: any) => a.is_default) || addrs[0];
-            setSelectedAddressId((prev) => prev || defaultAddr.id);
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    init();
-  }, [currentUser]);
-
   // Garment Alterations & Repairs State
-    const [alterations, setAlterations] = useState<{ [key: string]: number }>({});
-    const [alterationServices, setAlterationServices] = useState<AlterationService[]>([]);
-
-    // Initialize alterations state when alteration services load
-    React.useEffect(() => {
-      if (alterationServices.length > 0) {
-        const initialAlterations: { [key: string]: number } = {};
-        alterationServices.forEach(svc => {
-          initialAlterations[svc.id] = 0;
-        });
-        setAlterations(initialAlterations);
-      }
-    }, [alterationServices]);
+  const [alterations, setAlterations] = useState<{ [key: string]: number }>({});
+  const [alterationServices, setAlterationServices] = useState<AlterationService[]>([]);
 
   // Coupon & Loyalty
   const [couponCode, setCouponCode] = useState('');
@@ -150,44 +123,103 @@ export const BookingPage: React.FC = () => {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // Address search
+  const [addressSearch, setAddressSearch] = useState('');
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const srvs = await serviceService.getAllServices();
+        setServices(srvs);
+        if (srvs.length > 0) {
+          setSelectedServiceId((prev) => prev || srvs[0].id);
+        }
+
+        // Fetch alteration services from DB
+        const alterationsData = await alterationService.getAllAlterations();
+        setAlterationServices(alterationsData);
+
+        if (currentUser) {
+          const [addrs, loyalty] = await Promise.all([
+            addressService.getAddressesByUser(currentUser.id),
+            import('../../services/api/loyaltyService').then(m => m.loyaltyService.getAccount(currentUser.id))
+          ]);
+          setAddresses(addrs);
+          if (loyalty) setLoyaltyAcc(loyalty);
+          if (addrs.length > 0) {
+            const defaultAddr = addrs.find((a: any) => a.is_default) || addrs[0];
+            setSelectedAddressId((prev) => prev || defaultAddr.id);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, [currentUser]);
+
+  // Initialize alterations state when alteration services load
+  useEffect(() => {
+    if (alterationServices.length > 0) {
+      const initialAlterations: { [key: string]: number } = {};
+      alterationServices.forEach(svc => {
+        initialAlterations[svc.id] = 0;
+      });
+      setAlterations(initialAlterations);
+    }
+  }, [alterationServices]);
+
+  // Reset address search when step changes
+  useEffect(() => {
+    setAddressSearch('');
+  }, [currentStepIndex]);
+
   const activeService: Service | undefined = services.find((s) => s.id === selectedServiceId) || services[0];
 
   if (isLoading || !activeService) {
-    return <div className="p-10 text-center">Loading booking...</div>;
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        </div>
+      </div>
+    );
   }
 
   // Pricing calculations
-    const alterationsTotal = Object.entries(alterations).reduce((sum, [id, count]) => {
-      const opt = alterationServices.find((o) => o.id === id);
-      return sum + (opt ? opt.price * count : 0);
-    }, 0);
-    const garmentWashSubtotal = Math.round(activeService.base_price * weightKg);
-    const subtotal = garmentWashSubtotal + alterationsTotal;
-    const expressCharge = isExpress ? activeService.express_surcharge : 0;
-    const deliveryCharge = subtotal > 199 ? 0 : 40;
-    const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
-    const loyaltyDiscount = useLoyaltyPoints ? Math.min(subtotal, Math.floor(loyaltyAcc.balance / 100)) : 0;
-    const totalAmount = Math.max(0, subtotal + expressCharge + deliveryCharge - couponDiscount - loyaltyDiscount);
+  const alterationsTotal = Object.entries(alterations).reduce((sum, [id, count]) => {
+    const opt = alterationServices.find((o) => o.id === id);
+    return sum + (opt ? opt.price * count : 0);
+  }, 0);
+  const garmentWashSubtotal = Math.round(activeService.base_price * weightKg);
+  const subtotal = garmentWashSubtotal + alterationsTotal;
+  const expressCharge = isExpress ? activeService.express_surcharge : 0;
+  const deliveryCharge = subtotal > 199 ? 0 : 40;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
+  const loyaltyDiscount = useLoyaltyPoints ? Math.min(subtotal, Math.floor(loyaltyAcc.balance / 100)) : 0;
+  const totalAmount = Math.max(0, subtotal + expressCharge + deliveryCharge - couponDiscount - loyaltyDiscount);
 
   const handleApplyCoupon = async () => {
-        if (!couponCode) return;
-        try {
-          // Server-side coupon validation via RPC
-          const { data, error } = await supabase.rpc('validate_coupon', {
-            p_code: couponCode.toUpperCase(),
-            p_subtotal: subtotal
-          } as any);
-          if (error) throw error;
-          if (data && (data as any).valid) {
-            setAppliedCoupon({ code: couponCode.toUpperCase(), discount: (data as any).discount });
-            showToast('Coupon applied!', 'success');
-          } else {
-            showToast((data as any)?.error || 'Invalid coupon or criteria not met', 'error');
-          }
-        } catch (err: any) {
-          showToast(err.message || 'Error validating coupon', 'error');
-        }
-      };
+    if (!couponCode) return;
+    try {
+      // Server-side coupon validation via RPC
+      const { data, error } = await supabase.rpc('validate_coupon', {
+        p_code: couponCode.toUpperCase(),
+        p_subtotal: subtotal
+      } as any);
+      if (error) throw error;
+      if (data && (data as any).valid) {
+        setAppliedCoupon({ code: couponCode.toUpperCase(), discount: (data as any).discount });
+        showToast('Coupon applied!', 'success');
+      } else {
+        showToast((data as any)?.error || 'Invalid coupon or criteria not met', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error validating coupon', 'error');
+    }
+  };
 
   // Handle Save New Address
   const handleSaveNewAddress = async (e: React.FormEvent) => {
@@ -241,64 +273,64 @@ export const BookingPage: React.FC = () => {
     setIsSubmitting(true);
     setIsProcessingPayment(true);
 
-    const generatedTxnId = 'TXN_FP_' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
-    const paymentMethodLabel = paymentMethod === 'razorpay' ? 'Instant Online (UPI / Card)' : paymentMethod === 'cod' ? 'Cash on Delivery (Doorstep)' : 'FreshFold Wallet';
-
-    // 1. Immediately show the customer that payment succeeded!
-    setPaymentSuccessData({
-      txnId: generatedTxnId,
-      amount: totalAmount,
-      method: paymentMethodLabel,
-    });
-    setPaymentModalVisible(true);
-
     try {
-          const chosenAlterations = Object.entries(alterations)
-            .filter(([, count]) => count > 0)
-            .map(([id, count]) => {
-              const opt = alterationServices.find((o) => o.id === id);
-              return {
-                id,
-                name: opt?.name || '',
-                price: opt?.price || 0,
-                quantity: count,
-                unit: opt?.unit || 'piece',
-              };
-            });
+      const chosenAlterations = Object.entries(alterations)
+        .filter(([, count]) => count > 0)
+        .map(([id, count]) => {
+          const opt = alterationServices.find((o) => o.id === id);
+          return {
+            id,
+            name: opt?.name || '',
+            price: opt?.price || 0,
+            quantity: count,
+            unit: opt?.unit || 'piece',
+          };
+        });
 
       const newOrderData = {
-              user_id: currentUser.id,
-              address: chosenAddress,
-              items: [
-                {
-                  service_id: activeService.id,
-                  quantity: 1,
-                  weight: weightKg,
-                  unit_price: activeService.base_price,
-                  total_price: garmentWashSubtotal,
-                },
-              ],
-              subtotal,
-              discount_amount: couponDiscount + loyaltyDiscount,
-              delivery_charge: deliveryCharge,
-              express_surcharge: expressCharge,
-              total_amount: totalAmount,
-              payment_status: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
-              payment_method: paymentMethod,
-              pickup_slot_date: pickupDate,
-              pickup_slot_time: pickupSlot,
-              notes: specialInstructions + (chosenAlterations.length > 0 ? ' | Alterations: ' + chosenAlterations.map(a => `${a.name} x${a.quantity}`).join(', ') : ''),
-              coupon_code: appliedCoupon?.code || undefined,
-            };
+        user_id: currentUser.id,
+        address: chosenAddress,
+        items: [
+          {
+            service_id: activeService.id,
+            quantity: 1,
+            weight: weightKg,
+            unit_price: activeService.base_price,
+            total_price: garmentWashSubtotal,
+          },
+        ],
+        subtotal,
+        discount_amount: couponDiscount + loyaltyDiscount,
+        delivery_charge: deliveryCharge,
+        express_surcharge: expressCharge,
+        total_amount: totalAmount,
+        payment_status: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
+        payment_method: paymentMethod,
+        pickup_slot_date: pickupDate,
+        pickup_slot_time: pickupSlot,
+        notes: specialInstructions + (chosenAlterations.length > 0 ? ' | Alterations: ' + chosenAlterations.map(a => `${a.name} x${a.quantity}`).join(', ') : ''),
+        coupon_code: appliedCoupon?.code || undefined,
+      };
 
-      // 2. Perform the next work: record order in DB, assign dispatch & generate PIN
+      // Create order first (this calls the secure RPC which validates everything)
       const result = await orderService.createOrder(newOrderData);
 
-      setPaymentSuccessData(prev => prev ? ({ ...prev, orderId: result.id, deliveryPin: result.delivery_pin }) : null);
+      // Only show payment success AFTER order is created
+      const generatedTxnId = 'TXN_FP_' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+      const paymentMethodLabel = paymentMethod === 'razorpay' ? 'Instant Online (UPI / Card)' : paymentMethod === 'cod' ? 'Cash on Delivery (Doorstep)' : 'FreshFold Wallet';
+
+      setPaymentSuccessData({
+        txnId: generatedTxnId,
+        amount: totalAmount,
+        method: paymentMethodLabel,
+        orderId: result.id,
+        deliveryPin: result.delivery_pin,
+      });
+      setPaymentModalVisible(true);
       setConfirmedOrderId(result.id);
       setConfirmedPin(result.delivery_pin);
       showToast('Payment Verified & Pickup Dispatched!', 'success');
-      
+
       console.log(`[Notification to ${currentUser.phone || currentUser.email}] Payment Succeeded: ${generatedTxnId}. Order ${result.id} confirmed.`);
     } catch (err: any) {
       console.error('Order creation error:', err);
@@ -321,7 +353,7 @@ export const BookingPage: React.FC = () => {
 
         <div className="space-y-2">
           <Badge variant="mint" size="md">
-            Payment Succeeded &amp; Confirmed
+            Payment Succeeded & Confirmed
           </Badge>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
             Pickup Scheduled for {pickupDate}
@@ -444,6 +476,9 @@ export const BookingPage: React.FC = () => {
         </p>
       </div>
 
+      {/* Trust Badges - Inline */}
+      <InlineTrustBadges count={4} className="justify-center" />
+
       {/* Guest Notice & Quick Auth */}
       {!currentUser && (
         <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/70 text-emerald-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
@@ -523,46 +558,23 @@ export const BookingPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {services.map((srv) => (
-                  <div
-                    key={srv.id}
-                    onClick={() => setSelectedServiceId(srv.id)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                      selectedServiceId === srv.id
-                        ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${
-                              selectedServiceId === srv.id
-                                ? 'bg-slate-900 border-slate-900 text-white font-bold'
-                                : 'border-slate-300'
-                            }`}
-                          >
-                            {selectedServiceId === srv.id && '✓'}
-                          </span>
-                          <span className="font-semibold text-sm text-slate-900">{srv.name}</span>
-                        </div>
-                        {srv.tag && <Badge variant="slate" size="sm">{srv.tag}</Badge>}
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed pl-6">{srv.description}</p>
-                    </div>
-
-                    <div className="pt-4 flex justify-between items-center text-xs font-medium pl-6">
-                      <span className="text-slate-900 font-mono font-semibold">
-                        {formatCurrency(srv.base_price)} / {srv.pricing_type === 'per_kg' ? 'kg' : 'item'}
-                      </span>
-                      <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                        {srv.turnaround_hours}h Turnaround
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {services.map((srv) => {
+                  const categoryInfo = SERVICE_CATEGORIES[srv.category] || { icon: <Sparkles className="w-5 h-5" />, fabricTypes: ['cotton', 'casual'] };
+                  
+                  return (
+                    <ServiceCard
+                      key={srv.id}
+                      service={{
+                        ...srv,
+                        ...categoryInfo,
+                      }}
+                      isSelected={selectedServiceId === srv.id}
+                      onSelect={() => setSelectedServiceId(srv.id)}
+                      formatCurrency={formatCurrency}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -589,14 +601,15 @@ export const BookingPage: React.FC = () => {
                 </div>
 
                 <input
-                                  type="range"
-                                  min={1}
-                                  max={activeService.maximum_quantity || 20}
-                                  step={0.5}
-                                  value={weightKg}
-                                  onChange={(e) => setWeightKg(parseFloat(e.target.value))}
-                                  className="w-full accent-slate-900 h-2 bg-slate-200 rounded-lg cursor-pointer"
-                                />
+                  type="range"
+                  min={1}
+                  max={activeService.maximum_quantity || 20}
+                  step={0.5}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(parseFloat(e.target.value))}
+                  className="w-full accent-slate-900 h-2 bg-slate-200 rounded-lg cursor-pointer"
+                  aria-label="Estimated weight in kg"
+                />
 
                 {/* Quick Select Weight Preset Chips */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -643,7 +656,7 @@ export const BookingPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Scissors className="w-3.5 h-3.5 text-slate-500" />
-                    Tailoring &amp; Garment Repairs (Optional Add-on)
+                    Tailoring & Garment Repairs (Optional Add-on)
                   </label>
                   {alterationsTotal > 0 && (
                     <Badge variant="mint" size="sm">
@@ -653,9 +666,9 @@ export const BookingPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {alterationServices.map((opt) => {
-                                    const count = alterations[opt.id] || 0;
-                                    return (
+                  {alterationServices.map((opt) => {
+                    const count = alterations[opt.id] || 0;
+                    return (
                       <div
                         key={opt.id}
                         className={`p-3.5 rounded-xl border transition-all flex items-center justify-between ${
@@ -663,9 +676,9 @@ export const BookingPage: React.FC = () => {
                         }`}
                       >
                         <div className="space-y-0.5 max-w-[200px]">
-                                                  <div className="text-xs font-semibold text-slate-900">{opt.name}</div>
-                                                  <div className="text-[11px] text-slate-500 leading-tight">{opt.description}</div>
-                                                  <div className="text-xs font-mono font-medium text-slate-900 pt-0.5">
+                          <div className="text-xs font-semibold text-slate-900">{opt.name}</div>
+                          <div className="text-[11px] text-slate-500 leading-tight">{opt.description}</div>
+                          <div className="text-xs font-mono font-medium text-slate-900 pt-0.5">
                             +{formatCurrency(opt.price)}{' '}
                             <span className="font-normal text-[10px] text-slate-400">/{opt.unit}</span>
                           </div>
@@ -678,7 +691,7 @@ export const BookingPage: React.FC = () => {
                               onClick={() => setAlterations({ ...alterations, [opt.id]: Math.max(0, count - 1) })}
                               className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-100"
                             >
-                              -
+                              <Minus className="w-3 h-3" />
                             </button>
                           )}
                           <span className={`w-5 text-center text-xs font-mono font-medium ${count > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
@@ -689,7 +702,7 @@ export const BookingPage: React.FC = () => {
                             onClick={() => setAlterations({ ...alterations, [opt.id]: count + 1 })}
                             className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-100 shadow-xs"
                           >
-                            +
+                            <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
@@ -798,7 +811,7 @@ export const BookingPage: React.FC = () => {
                     isExpress ? 'bg-slate-900 text-white' : 'border border-slate-300 text-transparent'
                   }`}
                 >
-                  ✓
+                  <Check className="w-3 h-3 stroke-[3]" />
                 </div>
               </div>
             </div>
@@ -823,6 +836,18 @@ export const BookingPage: React.FC = () => {
                   <Plus className="w-3.5 h-3.5" />
                   Add New
                 </Button>
+              </div>
+
+              {/* Address Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search saved addresses..."
+                  value={addressSearch}
+                  onChange={(e) => setAddressSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
+                />
               </div>
 
               {addresses.length === 0 ? (
@@ -857,7 +882,13 @@ export const BookingPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {addresses.map((addr) => (
+                  {addresses
+                    .filter(addr => 
+                      addr.name.toLowerCase().includes(addressSearch.toLowerCase()) ||
+                      addr.address_line.toLowerCase().includes(addressSearch.toLowerCase()) ||
+                      addr.city.toLowerCase().includes(addressSearch.toLowerCase())
+                    )
+                    .map((addr) => (
                     <div
                       key={addr.id}
                       onClick={() => setSelectedAddressId(addr.id)}
@@ -877,6 +908,7 @@ export const BookingPage: React.FC = () => {
                             <span className="text-[10px] uppercase font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                               {addr.address_type}
                             </span>
+                            {addr.is_default && <Badge variant="mint" size="sm">Default</Badge>}
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
                             {addr.address_line}, {addr.landmark ? `${addr.landmark}, ` : ''}{addr.city} — {addr.postal_code}
@@ -890,7 +922,7 @@ export const BookingPage: React.FC = () => {
                           selectedAddressId === addr.id ? 'bg-slate-900 text-white' : 'border border-slate-300'
                         }`}
                       >
-                        {selectedAddressId === addr.id && '✓'}
+                        {selectedAddressId === addr.id && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                     </div>
                   ))}
@@ -903,7 +935,7 @@ export const BookingPage: React.FC = () => {
           {currentStepIndex === 4 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-xl font-semibold text-slate-900">Review Booking &amp; Pay</h3>
+                <h3 className="text-xl font-semibold text-slate-900">Review Booking & Pay</h3>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
                   Verify your doorstep collection details, apply vouchers, and select payment.
                 </p>
@@ -937,7 +969,7 @@ export const BookingPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="space-y-1">
-                        <span className="text-slate-400 font-medium">Service &amp; Estimated Weight:</span>
+                        <span className="text-slate-400 font-medium">Service & Estimated Weight:</span>
                         <div className="flex items-center gap-2">
                           <strong className="text-slate-900 font-semibold">{activeService.name}</strong>
                           <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 font-bold text-slate-800">
@@ -982,7 +1014,7 @@ export const BookingPage: React.FC = () => {
 
                     {chosenAlterations.length > 0 && (
                       <div className="pt-2 border-t border-slate-200/60 text-xs">
-                        <span className="text-slate-400 font-medium">Add-on Repairs &amp; Alterations:</span>
+                        <span className="text-slate-400 font-medium">Add-on Repairs & Alterations:</span>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {chosenAlterations.map((alt) => (
                             <span key={alt.id} className="bg-white border border-slate-200 px-2 py-0.5 rounded-lg text-[11px] text-slate-700 font-medium">
@@ -1002,7 +1034,22 @@ export const BookingPage: React.FC = () => {
                 );
               })()}
 
-              {/* 2. Promo Coupon Field */}
+              {/* 2. Price Breakdown */}
+              <PriceBreakdown
+                subtotal={garmentWashSubtotal}
+                alterationsTotal={alterationsTotal}
+                expressCharge={expressCharge}
+                deliveryCharge={deliveryCharge}
+                couponDiscount={couponDiscount}
+                loyaltyDiscount={loyaltyDiscount}
+                totalAmount={totalAmount}
+                isExpress={isExpress}
+                appliedCoupon={appliedCoupon}
+                loyaltyBalance={loyaltyAcc.balance}
+                useLoyaltyPoints={useLoyaltyPoints}
+              />
+
+              {/* 3. Promo Coupon Field */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <Tag className="w-4 h-4 text-slate-500" />
@@ -1059,7 +1106,7 @@ export const BookingPage: React.FC = () => {
                 )}
               </div>
 
-              {/* 3. Loyalty Points Redemption */}
+              {/* 4. Loyalty Points Redemption */}
               {loyaltyAcc.balance > 0 && (
                 <div
                   onClick={() => setUseLoyaltyPoints(!useLoyaltyPoints)}
@@ -1081,12 +1128,12 @@ export const BookingPage: React.FC = () => {
                       useLoyaltyPoints ? 'bg-slate-900 text-white' : 'border border-slate-300'
                     }`}
                   >
-                    {useLoyaltyPoints && '✓'}
+                    {useLoyaltyPoints && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
                 </div>
               )}
 
-              {/* 4. Payment Method Selection Cards */}
+              {/* 5. Payment Method Selection Cards */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -1160,7 +1207,7 @@ export const BookingPage: React.FC = () => {
                               isSelected ? 'bg-slate-900 text-white' : 'border border-slate-300'
                             }`}
                           >
-                            {isSelected && '✓'}
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
                         </div>
                       </button>
@@ -1169,24 +1216,8 @@ export const BookingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 5. Trust & Satisfaction Badges */}
-              <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[11px] text-slate-500">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center gap-1">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-slate-800">100% Garment Safe</span>
-                  <span className="text-[10px] text-slate-400">Color &amp; Fabric Guarantee</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center gap-1">
-                  <Scale className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-slate-800">Doorstep Weighing</span>
-                  <span className="text-[10px] text-slate-400">Calibrated digital scale</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center gap-1">
-                  <Sparkles className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-slate-800">Eco Hygienic Wash</span>
-                  <span className="text-[10px] text-slate-400">Antibacterial soft care</span>
-                </div>
-              </div>
+              {/* 6. Trust & Satisfaction Badges - using new component */}
+              <TrustBadges variant="grid" showIcons={true} />
             </div>
           )}
 
@@ -1199,7 +1230,7 @@ export const BookingPage: React.FC = () => {
                 onClick={() => setCurrentStepIndex(currentStepIndex - 1)}
                 className="gap-2 text-xs font-medium"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-3.5 h-3.5" />
                 Back
               </Button>
             ) : (
@@ -1214,7 +1245,7 @@ export const BookingPage: React.FC = () => {
                 className="gap-2 text-xs font-medium"
               >
                 Next Step
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             ) : (
               <Button
@@ -1235,81 +1266,19 @@ export const BookingPage: React.FC = () => {
 
         {/* Right Sticky Order Summary Panel */}
         <div className="lg:col-span-4 sticky top-24 space-y-4">
-          <div className="p-6 rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-4">
-            <h4 className="font-semibold text-sm text-slate-900 pb-3 border-b border-slate-100">
-              Pickup Summary
-            </h4>
-
-            <div className="space-y-3 text-xs text-slate-600">
-              <div className="flex justify-between items-center">
-                <span>Service:</span>
-                <span className="font-semibold text-slate-900">{activeService.name}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Estimated Load:</span>
-                <span className="font-semibold text-slate-900 font-mono">{weightKg} kg</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Pickup Slot:</span>
-                <span className="font-medium text-slate-900">{pickupDate}, {pickupSlot}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Speed:</span>
-                <span className={isExpress ? 'font-medium text-slate-900' : 'text-slate-600'}>
-                  {isExpress ? '24h Express Delivery' : 'Standard 48h Turnaround'}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Wash &amp; Care:</span>
-                <span className="font-mono">{formatCurrency(garmentWashSubtotal)}</span>
-              </div>
-              {alterationsTotal > 0 && (
-                <div className="flex justify-between text-slate-700 font-medium">
-                  <span>Alterations &amp; Repairs:</span>
-                  <span className="font-mono">+{formatCurrency(alterationsTotal)}</span>
-                </div>
-              )}
-              {isExpress && (
-                <div className="flex justify-between text-slate-700 font-medium">
-                  <span>Express Surcharge:</span>
-                  <span className="font-mono">+{formatCurrency(expressCharge)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-600">
-                <span>Pickup & Delivery:</span>
-                <span className={deliveryCharge === 0 ? 'text-emerald-600 font-semibold' : 'font-mono'}>
-                  {deliveryCharge === 0 ? 'FREE' : formatCurrency(deliveryCharge)}
-                </span>
-              </div>
-              {couponDiscount > 0 && (
-                <div className="flex justify-between text-emerald-600 font-semibold">
-                  <span>Promo Discount:</span>
-                  <span className="font-mono">-{formatCurrency(couponDiscount)}</span>
-                </div>
-              )}
-              {loyaltyDiscount > 0 && (
-                <div className="flex justify-between text-amber-600 font-semibold">
-                  <span>Loyalty Points:</span>
-                  <span className="font-mono">-{formatCurrency(loyaltyDiscount)}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex justify-between items-baseline">
-              <span className="font-medium text-xs text-slate-500">Estimated Total:</span>
-              <span className="text-2xl font-bold font-mono text-slate-900">
-                {formatCurrency(totalAmount)}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <span>Calibrated scale check at doorstep. Only pay for the actual measured weight.</span>
-            </div>
-          </div>
+          <StickyPriceBreakdown
+            subtotal={garmentWashSubtotal}
+            alterationsTotal={alterationsTotal}
+            expressCharge={expressCharge}
+            deliveryCharge={deliveryCharge}
+            couponDiscount={couponDiscount}
+            loyaltyDiscount={loyaltyDiscount}
+            totalAmount={totalAmount}
+            isExpress={isExpress}
+            appliedCoupon={appliedCoupon}
+            loyaltyBalance={loyaltyAcc.balance}
+            useLoyaltyPoints={useLoyaltyPoints}
+          />
         </div>
       </div>
 
@@ -1357,7 +1326,7 @@ export const BookingPage: React.FC = () => {
           </div>
 
           <div className="space-y-1 text-left">
-            <label className="text-xs font-semibold uppercase tracking-wider text-ink/70">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
               Address Label
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -1368,7 +1337,7 @@ export const BookingPage: React.FC = () => {
                   onClick={() => setNewAddrForm({ ...newAddrForm, address_type: type })}
                   className={`py-2 text-xs uppercase font-bold rounded-xl border transition-all ${
                     newAddrForm.address_type === type
-                      ? 'border-mint bg-mint-soft text-ink font-bold'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-700 font-bold'
                       : 'border-slate-200 bg-white text-slate-500'
                   }`}
                 >

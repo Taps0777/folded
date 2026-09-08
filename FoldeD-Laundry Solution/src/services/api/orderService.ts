@@ -160,7 +160,7 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
     status: dbData.status,
     items: (dbData.items || []).map((i: any) => ({
       id: i.id,
-      service_id: i.item_id || 'dummy',
+      service_id: i.service_id || dbData.service?.id || 'dummy',
       service_name: dbData.service?.name || i.service_name || 'Wash & Fold',
       quantity: i.quantity,
       unit_price: i.unit_price,
