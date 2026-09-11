@@ -6,7 +6,6 @@ import { useTheme } from '../../context/ThemeContext';
 import type { UserRole } from '../../types';
 import { ROLE_LABELS } from '../../lib/constants';
 import {
-  Sparkles,
   ShoppingBag,
   Shield,
   Truck,
