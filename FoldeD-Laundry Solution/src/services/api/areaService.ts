@@ -8,7 +8,7 @@ export const areaService = {
       .order('pincode', { ascending: true });
 
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async toggleServiceArea(pincode: string, isActive: boolean): Promise<void> {

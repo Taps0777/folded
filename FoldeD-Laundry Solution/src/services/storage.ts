@@ -215,7 +215,7 @@ export const StorageService = {
     if (idx === -1) return { success: false, message: 'Order not found' };
 
     const targetOrder = orders[idx];
-    if (targetOrder.delivery_pin.trim() !== enteredPin.trim()) {
+    if ((targetOrder.delivery_pin || '').trim() !== enteredPin.trim()) {
       return { success: false, message: 'Invalid 4-digit Delivery PIN. Please ask customer to check their dashboard.' };
     }
 

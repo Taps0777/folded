@@ -1,9 +1,24 @@
 import { supabase } from '../../lib/supabase';
+import type { PaymentStatusResult } from '../../types';
 
-// Helper to dynamically load the Razorpay script
-const loadRazorpayScript = () => {
+// Minimal shape of the Razorpay checkout global (checkout.js). Declared locally
+// so the constructor/call sites typecheck without pulling in @types/razorpay.
+interface RazorpayFailureResponse {
+  error?: { description?: string };
+}
+interface RazorpayInstance {
+  on(event: string, handler: (response: unknown) => void): void;
+  open(): void;
+}
+interface RazorpayConstructor {
+  new (options: Record<string, unknown>): RazorpayInstance;
+}
+type WindowWithRazorpay = Window & { Razorpay?: RazorpayConstructor };
+
+// Helper to dynamically load the Razorpay checkout script.
+function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
-    if ((window as any).Razorpay) {
+    if ((window as WindowWithRazorpay).Razorpay) {
       resolve(true);
       return;
     }
@@ -13,53 +28,80 @@ const loadRazorpayScript = () => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-};
+}
+
+export interface PaymentAttemptResult {
+  attempt: 'completed' | 'dismissed' | 'failed';
+  razorpayPaymentId?: string;
+  message: string;
+}
+
+// Polls the database for the server-confirmed payment state.
+// Frontend checkout success is NOT treated as final payment confirmation;
+// only the webhook-driven database state is authoritative.
+export async function pollPaymentStatus(
+  orderId: string,
+  attempts = 10,
+  intervalMs = 2000
+): Promise<PaymentStatusResult> {
+  for (let i = 0; i < attempts; i += 1) {
+    const result = await orderStatus(orderId);
+    if (result.ok && (result.payment_status === 'SUCCESS' || result.payment_status === 'FAILED')) {
+      return result;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return { ok: true, payment_status: 'PENDING', status: 'PENDING_PAYMENT' };
+}
+
+async function orderStatus(orderId: string): Promise<PaymentStatusResult> {
+  const { data, error } = await supabase.rpc('get_order_payment_status', {
+    p_order_id: orderId,
+  });
+  if (error) throw error;
+  return (data as unknown as PaymentStatusResult) ?? { ok: false, message: 'Unable to load payment status' };
+}
 
 export const paymentService = {
   /**
-   * Initializes the Razorpay payment gateway
-   * @param amount The total amount in INR
-   * @param orderId Our internal order ID (optional, for receipt mapping)
-   * @param customerInfo Customer name, email, phone
-   * @returns A promise that resolves to { success, transactionId, message }
+   * Initializes Razorpay checkout for an INTERNAL order.
+   * Only the internal order_id is sent to the Edge Function — the amount is
+   * read from the database server-side. The browser can never alter the amount.
    */
   async processRazorpayPayment(
-    amount: number,
     orderId: string,
     customerInfo: { name: string; email: string; phone: string }
-  ): Promise<{ success: boolean; transactionId?: string; message: string }> {
-    
+  ): Promise<PaymentAttemptResult> {
     const isScriptLoaded = await loadRazorpayScript();
     if (!isScriptLoaded) {
-      return { success: false, message: 'Razorpay SDK failed to load. Are you online?' };
+      return { attempt: 'failed', message: 'Payment gateway failed to load. Are you online?' };
     }
 
     try {
-      // 1. Call our Edge Function to create an order on Razorpay servers
-      const { data: rpOrderData, error } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { amount, receipt_id: orderId },
+      const { data: checkout, error } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { order_id: orderId },
       });
 
-      if (error || !rpOrderData?.id) {
-        throw new Error(error?.message || 'Failed to create Razorpay order');
+      if (error || !checkout?.id || !checkout?.key_id) {
+        const message = error?.message || checkout?.error || 'Unable to start payment';
+        return { attempt: 'failed', message };
       }
 
-      // 2. Open the Razorpay Checkout UI
       return new Promise((resolve) => {
-        const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock_key', // Your public key
-          amount: rpOrderData.amount,
-          currency: 'INR',
+        const options: Record<string, unknown> = {
+          key: checkout.key_id,
+          amount: checkout.amount,
+          currency: checkout.currency || 'INR',
           name: 'FoldeD Laundry',
-          description: `Payment for Order ${orderId}`,
-          order_id: rpOrderData.id,
-          handler: function (response: any) {
-            // Payment success!
-            // The backend webhook will capture the actual payment. We just return success to the UI.
+          description: `Payment for Order`,
+          order_id: checkout.id,
+          handler: function (response: Record<string, unknown>) {
+            // Payment attempt completed. The webhook confirms the payment in
+            // the database. Report attempt success; final state is polled.
             resolve({
-              success: true,
-              transactionId: response.razorpay_payment_id,
-              message: 'Payment Successful',
+              attempt: 'completed',
+              razorpayPaymentId: String(response.razorpay_payment_id || ''),
+              message: 'Payment processing. Please wait for confirmation.',
             });
           },
           prefill: {
@@ -67,32 +109,33 @@ export const paymentService = {
             email: customerInfo.email,
             contact: customerInfo.phone,
           },
-          theme: {
-            color: '#0f172a', // slate-900
-          },
+          theme: { color: '#0f172a' },
           modal: {
-            ondismiss: function () {
-              resolve({ success: false, message: 'Payment window closed' });
-            },
+            ondismiss: () => resolve({ attempt: 'dismissed', message: 'Payment window closed' }),
           },
         };
 
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (response: any) {
-          resolve({ success: false, message: response.error.description });
+        const RazorpayCtor = (window as WindowWithRazorpay).Razorpay;
+        if (!RazorpayCtor) {
+          resolve({ attempt: 'failed', message: 'Payment gateway unavailable' });
+          return;
+        }
+        const rzp = new RazorpayCtor(options);
+        rzp.on('payment.failed', (response: unknown) => {
+          const description =
+            (response as RazorpayFailureResponse)?.error?.description ||
+            'Payment could not be completed';
+          resolve({ attempt: 'failed', message: String(description) });
         });
-        
+
         rzp.open();
       });
-
-    } catch (err: any) {
-      console.error('Payment Error:', err);
-      // Fallback/Mock for local dev without Edge Functions deployed
-      if (err.message.includes('not found') || err.message.includes('fetch')) {
-        console.warn('Edge Function failed or not deployed. Falling back to Mock Payment Success for Demo.');
-        return { success: true, transactionId: `pay_mock_${Math.random().toString(36).substring(7)}`, message: 'Mock Payment Successful' };
-      }
-      return { success: false, message: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Payment could not be completed';
+      return { attempt: 'failed', message };
     }
-  }
+  },
+
+  pollPaymentStatus,
+  getPaymentStatus: orderStatus,
 };

@@ -107,7 +107,7 @@ export const TrustBadges: React.FC<{
           <div 
             key={index}
             className={cn(
-              'flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 hover:shadow-md hover:bg-white/80',
+              'flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 hover:shadow-md hover:bg-surface/80',
               colorClasses[badge.color || 'emerald']
             )}
           >

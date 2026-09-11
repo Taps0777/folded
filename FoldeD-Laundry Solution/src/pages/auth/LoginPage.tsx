@@ -45,7 +45,7 @@ export const LoginPage: React.FC = () => {
     { label: 'Customer (Rajesh Kumar)', email: 'customer@freshfold.in', role: 'customer', roleBadge: 'Customer', icon: UserCheck },
     { label: 'Pickup Specialist (Amit Patel)', email: 'pickup@freshfold.in', role: 'pickup_staff', roleBadge: 'Field Agent', icon: Truck },
     { label: 'Laundry Lead (Sunita Rao)', email: 'laundry@freshfold.in', role: 'laundry_staff', roleBadge: 'Facility Lead', icon: Sparkles },
-    { label: 'Delivery Runner (Vikram Singh)', email: 'delivery@freshfold.in', role: 'delivery_staff', roleBadge: 'Dispatch', icon: Truck },
+    { label: 'Delivery Runner (Vikram Singh)', email: 'delivery@freshfold.in', role: 'delivery_staff', roleBadge: 'Dispatch', icon: Truck }
   ];
 
   const redirectByRole = (role: string) => {
@@ -89,7 +89,6 @@ export const LoginPage: React.FC = () => {
         }
         await authService.signInWithEmail(cleanEmail, password);
         showToast('Signed in successfully!', 'success');
-        
         const profile = await authService.getCurrentProfile();
         redirectByRole(profile?.role || 'customer');
       }
@@ -145,16 +144,15 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-[85vh] py-12 px-4 sm:px-6 flex items-center justify-center bg-[#FBFBFD]">
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        
         {/* Left Column: Sign In / Sign Up Form */}
-        <div className="md:col-span-7 bg-white rounded-3xl p-8 sm:p-10 shadow-sm border border-slate-200/80">
+        <div className="md:col-span-7 bg-surface rounded-3xl p-8 sm:p-10 shadow-sm border border-slate-200/80">
           <div className="flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-ink flex items-center justify-center text-cream shadow-xs">
               <Sparkles className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">
-                {currentUser && !showAccountSwitchForm ? 'Session Active' : isSignUp ? 'Create your Account' : 'Welcome to FreshFold'}
+                {currentUser && !showAccountSwitchForm ? 'Session Active' : isSignUp ? 'Create your Account' : 'Welcome to FoldeD'}
               </h1>
               <p className="text-xs text-slate-500">
                 {currentUser && !showAccountSwitchForm
@@ -183,29 +181,17 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button
-                  variant="primary"
-                  className="flex-1 justify-center"
-                  onClick={() => redirectByRole(currentUser.role)}
-                >
+                <Button variant="primary" className="flex-1 justify-center" onClick={() => redirectByRole(currentUser.role)}>
                   <span>Go to My Portal</span>
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 justify-center border-slate-300 text-slate-700 hover:bg-slate-100"
-                  onClick={handleSignOut}
-                >
+                <Button variant="outline" className="flex-1 justify-center border-slate-300 text-slate-700 hover:bg-slate-100" onClick={handleSignOut}>
                   Sign Out
                 </Button>
               </div>
 
               <div className="pt-4 border-t border-slate-100 text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowAccountSwitchForm(true)}
-                  className="text-xs text-slate-500 hover:text-slate-900 font-medium flex items-center justify-center gap-1.5 mx-auto transition-colors"
-                >
+                <button type="button" onClick={() => setShowAccountSwitchForm(true)} className="text-xs text-slate-500 hover:text-slate-900 font-medium flex items-center justify-center gap-1.5 mx-auto transition-colors">
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Log in with another account</span>
                 </button>
@@ -216,10 +202,7 @@ export const LoginPage: React.FC = () => {
               {currentUser && (
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs">
                   <span className="text-slate-500">Active session: <strong>{currentUser.email}</strong></span>
-                  <button
-                    onClick={() => setShowAccountSwitchForm(false)}
-                    className="text-emerald-700 hover:underline font-medium"
-                  >
+                  <button onClick={() => setShowAccountSwitchForm(false)} className="text-emerald-700 hover:underline font-medium">
                     Keep session
                   </button>
                 </div>
@@ -240,8 +223,8 @@ export const LoginPage: React.FC = () => {
                         onClick={() => autofillDemoAccount(acc.email)}
                         className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all font-medium ${
                           email === acc.email
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
+                            ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink dark:border-cream shadow-xs'
+                            : 'bg-surface text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50'
                         }`}
                       >
                         {acc.roleBadge}
@@ -253,7 +236,7 @@ export const LoginPage: React.FC = () => {
 
               <form onSubmit={handleEmailAuth} className="space-y-4">
                 {errorMsg && (
-                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5 animate-in fade-in">
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5 animate-fade-in">
                     <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
                     <div className="space-y-1">
                       <p className="font-semibold">Authentication Notice</p>
@@ -307,7 +290,7 @@ export const LoginPage: React.FC = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 pr-10 text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none text-slate-900 placeholder:text-slate-400"
+                      className="w-full rounded-xl border border-slate-200 bg-surface px-4 py-2.5 pl-10 pr-10 text-sm transition-all focus:border-ink dark:focus:border-cream focus:ring-2 focus:ring-slate-900/10 outline-none text-slate-900 placeholder:text-slate-400"
                     />
                     <button
                       type="button"
@@ -361,11 +344,11 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Right Column: 1-Click Demo Accounts */}
-        <div className="md:col-span-5 bg-gradient-to-b from-slate-900 to-slate-800 text-white rounded-3xl p-6 sm:p-8 shadow-md">
+        <div className="md:col-span-5 bg-ink text-cream rounded-3xl p-6 sm:p-8 shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-cream/90">
                 1-Click Demo Logins
               </h2>
             </div>
@@ -374,7 +357,7 @@ export const LoginPage: React.FC = () => {
             </span>
           </div>
 
-          <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+          <p className="text-xs text-cream/60 mb-5 leading-relaxed">
             Click any role below to authenticate directly without typing credentials and test role-based views:
           </p>
 
@@ -396,12 +379,12 @@ export const LoginPage: React.FC = () => {
                       <div className="text-xs font-semibold text-white group-hover:text-emerald-300 transition-colors">
                         {acc.label}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono">
+                      <div className="text-[11px] text-cream/60 font-mono">
                         {acc.email}
                       </div>
                     </div>
                   </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-white/10 text-slate-300 group-hover:bg-emerald-500 group-hover:text-slate-900 transition-colors">
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-white/10 text-cream/70 group-hover:bg-emerald-500 group-hover:text-ink transition-colors">
                     {acc.roleBadge}
                   </span>
                 </button>
@@ -409,7 +392,7 @@ export const LoginPage: React.FC = () => {
             })}
           </div>
 
-          <div className="mt-6 pt-5 border-t border-white/10 text-[11px] text-slate-400">
+          <div className="mt-6 pt-5 border-t border-white/10 text-[11px] text-cream/60">
             <p>
               Default demo password for all accounts:{' '}
               <code className="text-emerald-300 bg-white/10 px-1.5 py-0.5 rounded font-mono">
@@ -418,7 +401,6 @@ export const LoginPage: React.FC = () => {
             </p>
           </div>
         </div>
-
       </div>
     </div>
   );

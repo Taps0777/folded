@@ -1,156 +1,238 @@
 import { supabase } from '../../lib/supabase';
-import type { Order, OrderStatus } from '../../types';
+import type { Json } from '../../types/database.types';
+import type {
+  Order,
+  OrderStatus,
+  CreateOrderResult,
+  VerifyPinResult,
+  PaymentStatusResult,
+} from '../../types';
+
+export interface CreateOrderInput {
+  customer_id: string;
+  address_id: string;
+  service_id: string;
+  weight_kg?: number;
+  is_express: boolean;
+  coupon_code?: string | null;
+  special_instructions?: string | null;
+  pickup_date: string;
+  pickup_slot: string;
+  loyalty_points?: number;
+}
 
 export const orderService = {
   async getAllOrders(): Promise<Order[]> {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        *,
+      .select(
+        `*,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
         customer:profiles!orders_customer_id_fkey(full_name, phone),
         service:services!orders_service_id_fkey(name),
-        history:order_status_history(*)
-      `)
+        history:order_status_history(*)`
+      )
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return (data || []).map(mapDbOrderToFrontendOrder);
   },
 
-  async createOrder(orderData: any): Promise<{ id: string, delivery_pin: string }> {
+  async createOrder(orderData: CreateOrderInput): Promise<CreateOrderResult> {
     const { data, error } = await supabase.rpc('create_order_secure', {
-      p_customer_id: orderData.user_id,
-      p_address_id: orderData.address.id,
-      p_service_id: orderData.items[0].service_id,
-      p_weight_kg: orderData.items[0].weight,
-      p_is_express: orderData.express_surcharge > 0,
-      p_coupon_code: orderData.coupon_code || null,
-      p_special_instructions: orderData.notes || null,
-      p_pickup_date: orderData.pickup_slot_date,
-      p_pickup_slot: orderData.pickup_slot_time
-    } as any);
+      p_customer_id: orderData.customer_id,
+      p_address_id: orderData.address_id,
+      p_service_id: orderData.service_id,
+      p_weight_kg: orderData.weight_kg ?? undefined,
+      p_is_express: orderData.is_express,
+      p_coupon_code: orderData.coupon_code || undefined,
+      p_special_instructions: orderData.special_instructions || undefined,
+      p_pickup_date: orderData.pickup_date,
+      p_pickup_slot: orderData.pickup_slot,
+      p_loyalty_points: orderData.loyalty_points ?? 0,
+    });
 
     if (error) throw error;
-    
-    const responseData = data as any;
-    return { id: responseData.id, delivery_pin: responseData.delivery_pin };
+    return data as unknown as CreateOrderResult;
   },
 
   async getOrdersByUser(userId: string): Promise<Order[]> {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        *,
+      .select(
+        `*,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
         customer:profiles!orders_customer_id_fkey(full_name, phone),
         service:services!orders_service_id_fkey(name),
-        history:order_status_history(*)
-      `)
+        history:order_status_history(*)`
+      )
       .eq('customer_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    // Map data to match the frontend Order type
     return (data || []).map(mapDbOrderToFrontendOrder);
   },
 
   async getOrderById(orderId: string): Promise<Order | null> {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        *,
+      .select(
+        `*,
         items:order_items(*),
         address:addresses!orders_pickup_address_id_fkey(*),
         customer:profiles!orders_customer_id_fkey(full_name, phone),
         service:services!orders_service_id_fkey(name),
-        history:order_status_history(*)
-      `)
+        history:order_status_history(*)`
+      )
       .eq('id', orderId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
     if (!data) return null;
     return mapDbOrderToFrontendOrder(data);
   },
 
+  // Delivery PIN is returned ONLY to the order's customer (or admin) via a
+  // secure RPC. The stored PIN is never fetched into the browser otherwise.
+  async getDeliveryPin(orderId: string): Promise<string | null> {
+    const { data, error } = await supabase.rpc('get_delivery_pin', { p_order_id: orderId });
+    if (error) throw error;
+    const result = data as unknown as { ok?: boolean; pin?: string; message?: string } | null;
+    if (!result?.ok || !result.pin) return null;
+    return result.pin;
+  },
 
-  async updateOrderPickup(orderId: string, bagTagId: string, measuredWeight: number): Promise<void> {
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        bag_id: bagTagId,
-        measured_weight_kg: measuredWeight
-      } as any)
-      .eq('id', orderId);
+  async recordPickup(orderId: string, bagTagId: string, measuredWeight: number): Promise<void> {
+    const { error } = await supabase.rpc('record_pickup', {
+      p_order_id: orderId,
+      p_bag_id: bagTagId,
+      p_measured_weight_kg: measuredWeight,
+    });
     if (error) throw error;
   },
 
   async advanceLaundryStage(orderId: string, stage: string): Promise<void> {
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        laundry_stage: stage
-      } as any)
-      .eq('id', orderId);
+    const { error } = await supabase.rpc('advance_laundry_stage', {
+      p_order_id: orderId,
+      p_stage: stage,
+    });
     if (error) throw error;
   },
 
-  async submitQualityCheck(orderId: string, checkData: any): Promise<void> {
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        quality_check: checkData
-      } as any)
-      .eq('id', orderId);
+  async submitQualityCheck(
+    orderId: string,
+    checkData: Record<string, unknown>,
+    passed: boolean
+  ): Promise<void> {
+    const { error } = await supabase.rpc('submit_quality_check', {
+      p_order_id: orderId,
+      p_quality_check: checkData as unknown as Json,
+      p_passed: passed,
+    });
     if (error) throw error;
   },
 
-  async verifyDeliveryPin(orderId: string, pin: string): Promise<{ success: boolean; message: string }> {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('delivery_pin')
-      .eq('id', orderId)
-      .single();
-      
-    if (error) return { success: false, message: 'Order not found' };
-    
-    const orderData = data as any;
-    if (orderData.delivery_pin !== pin) {
-      return { success: false, message: 'Invalid 4-digit PIN' };
-    }
-    
-    await this.updateOrderStatus(orderId, 'DELIVERED', 'Delivery verified with PIN');
-    return { success: true, message: 'PIN Verified' };
+  async verifyDeliveryPin(orderId: string, pin: string): Promise<VerifyPinResult> {
+    const { data, error } = await supabase.rpc('verify_delivery_pin', {
+      p_order_id: orderId,
+      p_pin: pin,
+    });
+    if (error) throw error;
+    const result = data as unknown as VerifyPinResult;
+    return result ?? { ok: false, message: 'Unable to verify PIN' };
   },
 
-  async updateOrderStatus(orderId: string, newStatus: OrderStatus, reason?: string, _actorId?: string) {
+  // Used by admins for in-lifecycle moves and by staff/customer through the
+  // dedicated RPCs. Customers should call cancelOrder instead.
+  async updateOrderStatus(orderId: string, newStatus: OrderStatus, reason?: string): Promise<void> {
     const { error } = await supabase.rpc('update_order_status', {
       p_order_id: orderId,
       p_new_status: newStatus,
-      p_reason: reason || null,
-      p_quality_check: null
-    } as any);
-
+      p_reason: reason || undefined,
+      p_quality_check: undefined,
+    });
     if (error) throw error;
-  }
+  },
+
+  async cancelOrder(orderId: string, reason?: string): Promise<void> {
+    const { error } = await supabase.rpc('cancel_order', {
+      p_order_id: orderId,
+      p_reason: reason || undefined,
+    });
+    if (error) throw error;
+  },
+
+  async requestRefund(orderId: string, reason?: string) {
+    const { data, error } = await supabase.rpc('request_refund', {
+      p_order_id: orderId,
+      p_reason: reason || undefined,
+    });
+    if (error) throw error;
+    return data as unknown as { ok: boolean; refund_id?: string; razorpay_payment_id?: string; amount?: number; message?: string };
+  },
+
+  async adminOverrideStatus(orderId: string, newStatus: OrderStatus, reason: string): Promise<void> {
+    const { error } = await supabase.rpc('admin_override_status', {
+      p_order_id: orderId,
+      p_new_status: newStatus,
+      p_reason: reason,
+    });
+    if (error) throw error;
+  },
+
+  async assignPickupAgent(orderId: string, agentId: string): Promise<void> {
+    const { error } = await supabase.rpc('assign_pickup_agent', {
+      p_order_id: orderId,
+      p_agent_id: agentId,
+    });
+    if (error) throw error;
+  },
+
+  async assignDeliveryAgent(orderId: string, agentId: string): Promise<void> {
+    const { error } = await supabase.rpc('assign_delivery_agent', {
+      p_order_id: orderId,
+      p_agent_id: agentId,
+    });
+    if (error) throw error;
+  },
+
+  async getPaymentStatus(orderId: string): Promise<PaymentStatusResult> {
+    const { data, error } = await supabase.rpc('get_order_payment_status', {
+      p_order_id: orderId,
+    });
+    if (error) throw error;
+    return (data as unknown as PaymentStatusResult) ?? { ok: false, message: 'Unable to load payment status' };
+  },
 };
 
-// Helper to map DB snake_case columns to camelCase frontend types if needed
-function mapDbOrderToFrontendOrder(dbData: any): Order {
+// Map DB snake_case rows to frontend Order shape. delivery_pin is intentionally
+// NOT mapped — it is only ever obtained through getDeliveryPin.
+function mapDbOrderToFrontendOrder(dbData: Record<string, any>): Order {
+  const items = (dbData.items || []).map((i: Record<string, any>) => ({
+    id: i.id,
+    service_id: i.service_id || dbData.service?.id || '',
+    service_name: dbData.service?.name || i.service_name || 'Laundry Service',
+    quantity: i.quantity,
+    weight: i.weight ?? undefined,
+    unit_price: Number(i.unit_price) || 0,
+    total_price: Number(i.total_price) || 0,
+  }));
+
   return {
     id: dbData.id,
+    order_number: dbData.order_number,
     user_id: dbData.customer_id,
-    customer_name: dbData.customer?.full_name || dbData.customer_name || 'Customer',
-    customer_phone: dbData.customer?.phone || dbData.customer_phone || '',
+    customer_name: dbData.customer?.full_name || 'Customer',
+    customer_phone: dbData.customer?.phone || '',
     address: {
       id: dbData.address?.id || '',
       user_id: dbData.address?.user_id || '',
       name: dbData.address?.label || 'Home',
       phone: dbData.address?.phone || '',
       address_line: dbData.address?.address_line_1 || '',
+      landmark: dbData.address?.landmark || undefined,
       city: dbData.address?.city || '',
       state: dbData.address?.state || '',
       postal_code: dbData.address?.pincode || '',
@@ -158,19 +240,12 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
       is_default: dbData.address?.is_default || false,
     },
     status: dbData.status,
-    items: (dbData.items || []).map((i: any) => ({
-      id: i.id,
-      service_id: i.service_id || dbData.service?.id || 'dummy',
-      service_name: dbData.service?.name || i.service_name || 'Wash & Fold',
-      quantity: i.quantity,
-      unit_price: i.unit_price,
-      total_price: i.total_price
-    })),
-    subtotal: dbData.subtotal,
-    discount_amount: dbData.discount,
-    delivery_charge: dbData.delivery_fee,
-    express_surcharge: dbData.express_fee,
-    total_amount: dbData.total,
+    items,
+    subtotal: Number(dbData.subtotal) || 0,
+    discount_amount: Number(dbData.discount) || 0,
+    delivery_charge: Number(dbData.delivery_fee) || 0,
+    express_surcharge: Number(dbData.express_fee) || 0,
+    total_amount: Number(dbData.total) || 0,
     payment_status: dbData.payment_status,
     payment_method: 'razorpay',
     loyalty_points_used: 0,
@@ -178,20 +253,19 @@ function mapDbOrderToFrontendOrder(dbData: any): Order {
     pickup_slot_date: dbData.pickup_date || '',
     pickup_slot_time: dbData.pickup_time_slot || '',
     estimated_delivery: dbData.estimated_delivery_at || '',
-    delivery_pin: dbData.delivery_pin || '1234',
     created_at: dbData.created_at,
     updated_at: dbData.updated_at,
-    history: (dbData.history || []).map((h: any) => ({
+    history: (dbData.history || []).map((h: Record<string, any>) => ({
       id: h.id,
       status: h.new_status,
       timestamp: h.timestamp,
       note: h.reason,
-      actor: h.changed_by
+      actor: h.changed_by,
     })),
-    bag_id: dbData.bag_id,
-    measured_weight_kg: dbData.measured_weight_kg,
-    laundry_stage: dbData.laundry_stage,
-    quality_check: dbData.quality_check,
-    alterations: dbData.alterations,
+    bag_id: dbData.bag_id || undefined,
+    measured_weight_kg: dbData.measured_weight_kg ?? undefined,
+    laundry_stage: dbData.laundry_stage ?? undefined,
+    quality_check: dbData.quality_check ?? undefined,
+    alterations: dbData.alterations ?? undefined,
   };
 }

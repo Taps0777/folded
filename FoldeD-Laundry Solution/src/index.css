@@ -2,101 +2,581 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --cream: #FBFBFD;
-    --ink: #0F172A;
-    --slate: #64748B;
-    --mint: #059669;
-    --mint-soft: #ECFDF5;
-    --coral: #E11D48;
-    --coral-soft: #FFF1F2;
-  }
+/* ============================================================================
+   Theme variables — channel triplets (R G B) so Tailwind's opacity modifiers
+   (bg-slate-900/50, border-slate-200/80, …) compose via
+   rgb(var(--c-…) / <alpha-value>). The .dark block flips every scale, which is
+   what makes dark mode work app-wide without per-page dark: variants.
+   Neutral ramp is harmonized with brand ink #17201E; in dark mode the ramp
+   inverts so text/borders/panels all flip roles correctly.
+   ============================================================================ */
+:root {
+  color-scheme: light;
 
-  html {
-    scroll-behavior: smooth;
-  }
+  /* Semantic surfaces & text */
+  --c-background: 250 248 244;            /* cream page */
+  --c-foreground: 23 32 30;               /* ink text */
+  --c-surface: 255 255 255;
+  --c-surface-variant: 240 238 232;
+  --c-on-surface-variant: 91 104 102;
+  --c-surface-container-lowest: 255 255 255;
+  --c-surface-container-low: 250 248 244;
+  --c-surface-container: 245 243 238;
+  --c-surface-container-high: 239 237 231;
+  --c-surface-container-highest: 233 230 224;
+  --c-outline: 229 226 218;
+  --c-outline-variant: 236 233 226;
 
-  body {
-    background-color: #FBFBFD;
-    color: #0F172A;
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.01em;
-  }
+  /* Containers */
+  --c-primary-container: 209 250 229;     /* mint-soft */
+  --c-on-primary-container: 6 95 70;
+  --c-secondary-container: 232 230 224;
+  --c-tertiary-container: 255 247 237;
+  --c-on-tertiary-container: 180 83 9;
+  --c-error-container: 254 226 226;
+  --c-on-error-container: 185 28 28;
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
-    color: #0F172A;
-    letter-spacing: -0.025em;
-  }
+  /* Neutral scale — charcoal harmonized with ink */
+  --c-slate-50: 247 248 248;
+  --c-slate-100: 239 241 241;
+  --c-slate-200: 225 228 228;
+  --c-slate-300: 198 203 203;
+  --c-slate-400: 154 163 162;
+  --c-slate-500: 110 123 121;
+  --c-slate-600: 85 96 95;
+  --c-slate-700: 64 73 72;
+  --c-slate-800: 42 50 48;
+  --c-slate-900: 26 32 31;
+  --c-slate-950: 16 20 19;
 
-  code, pre, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
-  }
+  /* Brand accent scale (emerald = mint ramp) */
+  --c-emerald-50: 236 253 245;
+  --c-emerald-100: 209 250 229;
+  --c-emerald-200: 167 243 208;
+  --c-emerald-300: 110 231 183;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 5 150 105;
+  --c-emerald-700: 4 120 87;
+  --c-emerald-800: 6 95 70;
+  --c-emerald-900: 6 78 59;
+
+  /* Status scales */
+  --c-amber-50: 255 251 235;
+  --c-amber-100: 254 243 199;
+  --c-amber-200: 253 230 138;
+  --c-amber-300: 252 211 77;
+  --c-amber-400: 251 191 36;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 217 119 6;
+  --c-amber-700: 180 83 9;
+  --c-amber-800: 146 64 14;
+  --c-amber-900: 120 53 15;
+
+  --c-rose-50: 255 241 242;
+  --c-rose-100: 255 228 230;
+  --c-rose-200: 254 205 211;
+  --c-rose-300: 253 164 175;
+  --c-rose-400: 251 113 133;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 225 29 72;
+  --c-rose-700: 190 18 60;
+  --c-rose-800: 159 18 57;
+  --c-rose-900: 136 19 55;
+
+  --c-red-50: 254 242 242;
+  --c-red-100: 254 226 226;
+  --c-red-200: 254 202 202;
+  --c-red-300: 252 165 165;
+  --c-red-400: 248 113 113;
+  --c-red-500: 239 68 68;
+  --c-red-600: 220 38 38;
+  --c-red-700: 185 28 28;
+
+  --c-blue-50: 239 246 255;
+  --c-blue-100: 219 234 254;
+  --c-blue-200: 191 219 254;
+  --c-blue-300: 147 197 253;
+  --c-blue-400: 96 165 250;
+  --c-blue-500: 59 130 246;
+  --c-blue-600: 37 99 235;
+
+  --c-purple-50: 250 245 255;
+  --c-purple-100: 243 232 255;
+  --c-purple-200: 233 213 255;
+  --c-purple-300: 216 180 254;
+  --c-purple-400: 192 132 252;
+  --c-purple-500: 168 85 247;
+  --c-purple-600: 147 51 234;
+  --c-purple-700: 126 34 206;
+
+  --c-sky-50: 240 249 255;
+  --c-sky-100: 224 242 254;
+  --c-sky-200: 186 230 253;
+  --c-sky-300: 125 211 252;
+  --c-sky-400: 56 189 248;
+  --c-sky-500: 14 165 233;
+  --c-sky-600: 2 132 199;
+  --c-sky-700: 3 105 161;
 }
 
+.dark {
+  color-scheme: dark;
+
+  /* Semantic surfaces & text */
+  --c-background: 17 21 20;
+  --c-foreground: 233 237 236;
+  --c-surface: 25 31 30;
+  --c-surface-variant: 31 38 37;
+  --c-on-surface-variant: 154 165 163;
+  --c-surface-container-lowest: 21 26 25;
+  --c-surface-container-low: 28 34 33;
+  --c-surface-container: 33 40 39;
+  --c-surface-container-high: 38 46 45;
+  --c-surface-container-highest: 44 52 51;
+  --c-outline: 56 65 64;
+  --c-outline-variant: 44 52 51;
+
+  /* Containers */
+  --c-primary-container: 13 50 35;
+  --c-on-primary-container: 110 231 183;
+  --c-secondary-container: 42 50 49;
+  --c-tertiary-container: 42 27 5;
+  --c-on-tertiary-container: 252 211 77;
+  --c-error-container: 58 13 22;
+  --c-on-error-container: 251 113 133;
+
+  /* Neutral scale — inverted: light-mode text becomes light, panels become dark */
+  --c-slate-50: 18 23 22;
+  --c-slate-100: 24 30 29;
+  --c-slate-200: 38 45 44;
+  --c-slate-300: 55 63 62;
+  --c-slate-400: 138 148 147;
+  --c-slate-500: 165 174 173;
+  --c-slate-600: 191 198 197;
+  --c-slate-700: 203 209 208;
+  --c-slate-800: 221 225 224;
+  --c-slate-900: 232 236 235;
+  --c-slate-950: 242 244 243;
+
+  /* Brand accent scale — tints become dark mint, text shades lighten */
+  --c-emerald-50: 10 37 27;
+  --c-emerald-100: 13 50 35;
+  --c-emerald-200: 16 70 47;
+  --c-emerald-300: 52 211 153;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 16 185 129;
+  --c-emerald-700: 52 211 153;
+  --c-emerald-800: 110 231 183;
+  --c-emerald-900: 167 243 208;
+
+  /* Status scales — same pattern */
+  --c-amber-50: 42 27 5;
+  --c-amber-100: 51 34 8;
+  --c-amber-200: 69 48 11;
+  --c-amber-300: 252 211 77;
+  --c-amber-400: 251 191 36;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 245 158 11;
+  --c-amber-700: 252 211 77;
+  --c-amber-800: 253 230 138;
+  --c-amber-900: 254 243 199;
+
+  --c-rose-50: 42 10 16;
+  --c-rose-100: 58 13 22;
+  --c-rose-200: 78 18 32;
+  --c-rose-300: 251 113 133;
+  --c-rose-400: 251 113 133;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 251 113 133;
+  --c-rose-700: 253 164 175;
+  --c-rose-800: 254 205 211;
+  --c-rose-900: 255 228 230;
+
+  --c-red-50: 42 11 11;
+  --c-red-100: 56 14 14;
+  --c-red-200: 74 18 18;
+  --c-red-300: 248 113 113;
+  --c-red-400: 248 113 113;
+  --c-red-500: 239 68 68;
+  --c-red-600: 248 113 113;
+  --c-red-700: 252 165 165;
+
+  --c-blue-50: 11 27 46;
+  --c-blue-100: 18 38 66;
+  --c-blue-200: 27 51 82;
+  --c-blue-300: 147 197 253;
+  --c-blue-400: 96 165 250;
+  --c-blue-500: 59 130 246;
+  --c-blue-600: 96 165 250;
+
+  --c-purple-50: 30 16 53;
+  --c-purple-100: 40 23 74;
+  --c-purple-200: 53 32 97;
+  --c-purple-300: 192 132 252;
+  --c-purple-400: 192 132 252;
+  --c-purple-500: 168 85 247;
+  --c-purple-600: 167 139 250;
+  --c-purple-700: 196 181 253;
+
+  --c-sky-50: 10 27 42;
+  --c-sky-100: 15 39 64;
+  --c-sky-200: 22 50 79;
+  --c-sky-300: 125 211 252;
+  --c-sky-400: 56 189 248;
+  --c-sky-500: 14 165 233;
+  --c-sky-600: 56 189 248;
+  --c-sky-700: 125 211 252;
+}
+
+/* Base styles — Ink + Cream + Mint design system */
+@layer base {
+  :root {
+      --font-sans: "Inter var", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-display: "Inter var", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body, #root {
+      height: 100%;
+      background-color: rgb(var(--c-background));
+      color: rgb(var(--c-foreground));
+      font-family: var(--font-sans);
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      scroll-behavior: smooth;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    body {
+      line-height: 1.5;
+      font-weight: 400;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-display);
+        font-weight: 600;
+        line-height: 1.25;
+        color: rgb(var(--c-foreground));
+      }
+
+      p {
+        line-height: 1.6;
+        color: rgb(var(--c-on-surface-variant));
+      }
+
+      a {
+        color: #10B981;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      a:hover {
+        text-decoration: none;
+      }
+
+      input, button, select, textarea {
+        font-family: inherit;
+        font-size: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      ::selection {
+        background-color: rgb(16 185 129 / 0.25);
+        color: rgb(var(--c-foreground));
+      }
+
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgb(var(--c-surface-container));
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgb(var(--c-outline));
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgb(var(--c-slate-400));
+      }
+}
+
+/* Component utilities */
 @layer components {
-  /* Buttons */
+  /* Button variants */
   .btn {
-    @apply inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-label-md transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:pointer-events-none;
   }
 
-  .btn-coral {
-    @apply bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow;
+  .btn-primary {
+    @apply btn bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 shadow-sm hover:shadow-md;
   }
 
-  .btn-mint {
-    @apply bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm;
+  .btn-secondary {
+    @apply btn bg-secondary-container text-on-secondary-container hover:bg-secondary-container/90 active:bg-secondary-container/80 shadow-sm hover:shadow-md;
   }
 
-  .btn-ink {
-    @apply bg-slate-900 text-white hover:bg-slate-800 shadow-sm;
+  .btn-tertiary {
+    @apply btn bg-tertiary-container text-on-tertiary-container hover:bg-tertiary-container/90 active:bg-tertiary-container/80 shadow-sm hover:shadow-md;
   }
 
-  .btn-outline {
-    @apply bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-xs;
+  .btn-outlined {
+    @apply btn border-2 border-outline-variant bg-transparent text-on-surface hover:bg-surface-container-highest hover:border-outline active:bg-surface-container-high;
   }
 
   .btn-ghost {
-    @apply bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100;
+    @apply btn bg-transparent text-on-surface hover:bg-surface-container-highest active:bg-surface-container-high;
   }
 
-  /* Cards */
-  .card-fresh {
-    @apply bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-slate-300;
+  .btn-destructive {
+    @apply btn bg-error text-on-error hover:bg-error/90 active:bg-error/80 shadow-sm hover:shadow-md;
   }
 
-  /* Inputs */
-  .input-fresh {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition-all focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none text-slate-900 placeholder:text-slate-400;
+  .btn-sm {
+    @apply px-3 py-1.5 text-label-sm gap-1.5;
   }
 
-  /* Fabric Fold subtle diagonal motif */
-  .fabric-pattern {
-    background-color: #FBFBFD;
-    background-image: radial-gradient(#CBD5E1 0.75px, transparent 0.75px);
-    background-size: 24px 24px;
-    opacity: 0.6;
+  .btn-lg {
+    @apply px-6 py-3.5 text-body-md gap-2;
+  }
+
+  .btn-full {
+    @apply w-full;
+  }
+
+  /* Input variants */
+  .input {
+    @apply w-full px-4 py-3 rounded-xl bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+
+  .input-error {
+    @apply border-error focus:ring-error;
+  }
+
+  .input-label {
+    @apply block text-label-sm font-label-md text-on-surface-variant mb-2;
+  }
+
+  .input-hint {
+    @apply mt-1.5 text-body-sm text-on-surface-variant/70;
+  }
+
+  /* Card variants */
+  .card {
+    @apply bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm transition-all duration-300;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-lg hover:border-outline/50 hover:-translate-y-0.5;
+  }
+
+  .card-elevated {
+    @apply bg-surface-container-low rounded-2xl shadow-xl border border-outline-variant/20;
+  }
+
+  .card-interactive {
+    @apply card-hover cursor-pointer;
+  }
+
+  /* Chip variants */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-sm font-label-md transition-all duration-200;
+  }
+
+  .chip-primary {
+    @apply chip bg-primary-container text-on-primary-container;
+  }
+
+  .chip-secondary {
+    @apply chip bg-secondary-container text-on-secondary-container;
+  }
+
+  .chip-outline {
+    @apply chip border border-outline-variant bg-transparent text-on-surface-variant hover:bg-surface-container-highest;
+  }
+
+  .chip-selected {
+    @apply chip bg-primary text-on-primary shadow-sm;
+  }
+
+  /* Badge variants */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm font-label-md;
+  }
+
+  .badge-success {
+    @apply badge bg-primary-container/20 text-primary border border-primary/30;
+  }
+
+  .badge-warning {
+    @apply badge bg-tertiary-container/20 text-tertiary border border-tertiary/30;
+  }
+
+  .badge-error {
+    @apply badge bg-error-container/20 text-error border border-error/30;
+  }
+
+  .badge-info {
+    @apply badge bg-secondary-container/20 text-on-secondary-container border border-secondary/30;
+  }
+
+  .badge-neutral {
+    @apply badge bg-surface-container-high text-on-surface-variant border border-outline-variant;
+  }
+
+  /* Section container */
+  .section {
+    @apply px-gutter py-space-xl md:py-space-2xl;
+  }
+
+  .container {
+    @apply max-w-7xl mx-auto;
+  }
+
+  /* Grid utilities */
+  .grid-bento {
+    @apply grid grid-cols-1 md:grid-cols-12 gap-6;
+  }
+
+  /* Progress step */
+  .progress-step {
+    @apply flex flex-col items-center gap-2 relative z-10;
+  }
+
+  .progress-step-icon {
+    @apply w-9 h-9 rounded-full flex items-center justify-center text-on-primary font-bold transition-all duration-300;
+  }
+
+  .progress-step-icon-complete {
+    @apply progress-step-icon bg-primary;
+  }
+
+  .progress-step-icon-active {
+    @apply progress-step-icon bg-primary ring-4 ring-primary/20 animate-pulse;
+  }
+
+  .progress-step-icon-pending {
+    @apply progress-step-icon bg-surface-container-highest text-on-surface-variant;
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+/* Animation utilities */
+@layer utilities {
+  .transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 
-::-webkit-scrollbar-track {
-  background: #FAF8F5;
-}
+  .transition-colors {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 9999px;
-}
+  .transition-transform {
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  .transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  .fade-in {
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .slide-up {
+    animation: slideUp 300ms ease-out;
+  }
+
+  .scale-in {
+    animation: scaleIn 200ms ease-out;
+  }
+
+  .pulse-gentle {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .bounce-gentle {
+    animation: bounce 2s infinite;
+  }
+
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    0% { transform: translateY(10px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Text utilities */
+    .font-headline {
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+
+    .font-body {
+      font-family: var(--font-sans);
+      font-weight: 400;
+    }
+
+    .font-label {
+      font-family: var(--font-sans);
+      font-weight: 500;
+    }
+
+    .font-label-sm {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .font-label-md {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+  /* Glass morphism */
+  .glass {
+    @apply bg-surface/80 backdrop-blur-xl;
+  }
+
+  .glass-strong {
+    @apply bg-surface/90 backdrop-blur-2xl;
+  }
+
+  /* Shadow utilities */
+  .shadow-ambient {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-elevated {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  }
 }

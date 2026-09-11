@@ -16,7 +16,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   animation = 'pulse',
   ...props
 }) => {
-  const baseStyles = 'bg-slate-200 dark:bg-slate-700 rounded overflow-hidden';
+  const baseStyles = 'bg-slate-200 rounded overflow-hidden';
   
   const variantStyles = {
     text: 'h-4 rounded',
@@ -72,7 +72,7 @@ export const SkeletonCard: React.FC<{
   hasImage?: boolean;
   hasAction?: boolean;
 }> = ({ className, hasImage = true, hasAction = true }) => (
-  <div className={cn('bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 space-y-4 animate-pulse', className)}>
+  <div className={cn('bg-surface rounded-2xl border border-slate-200/80 p-5 space-y-4 animate-pulse', className)}>
     {hasImage && (
       <Skeleton variant="rectangular" className="w-full h-40" />
     )}
@@ -87,7 +87,7 @@ export const SkeletonCard: React.FC<{
 export const SkeletonServiceCard: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={cn('p-5 rounded-2xl border border-slate-200/80 bg-white dark:bg-slate-800 dark:border-slate-700/80 animate-pulse space-y-4', className)}>
+  <div className={cn('p-5 rounded-2xl border border-slate-200/80 bg-surface animate-pulse space-y-4', className)}>
     <div className="flex items-start justify-between">
       <div className="flex items-center gap-3">
         <Skeleton variant="circular" width="40" height="40" />
@@ -109,7 +109,7 @@ export const SkeletonServiceCard: React.FC<{
 export const SkeletonOrderCard: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={cn('p-6 border border-slate-200/80 bg-white dark:bg-slate-800 dark:border-slate-700/80 rounded-2xl animate-pulse space-y-4', className)}>
+  <div className={cn('p-6 border border-slate-200/80 bg-surface rounded-2xl animate-pulse space-y-4', className)}>
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Skeleton variant="text" width="80px" height="20px" />
@@ -129,7 +129,7 @@ export const SkeletonOrderCard: React.FC<{
 export const SkeletonAddressCard: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={cn('p-4 rounded-xl border border-slate-200/80 bg-white dark:bg-slate-800 dark:border-slate-700/80 animate-pulse space-y-2', className)}>
+  <div className={cn('p-4 rounded-xl border border-slate-200/80 bg-surface animate-pulse space-y-2', className)}>
     <div className="flex items-center gap-3">
       <Skeleton variant="circular" width="32" height="32" />
       <div className="flex-1 space-y-1">
@@ -149,7 +149,7 @@ export const SkeletonDashboardStats: React.FC<{
 }> = ({ count = 4, className }) => (
   <div className={cn('grid grid-cols-2 lg:grid-cols-4 gap-4', className)}>
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 animate-pulse space-y-2">
+      <div key={i} className="bg-surface rounded-2xl border border-slate-200/80 p-5 animate-pulse space-y-2">
         <div className="flex items-center justify-between">
           <Skeleton variant="text" width="60%" />
           <Skeleton variant="circular" width="36" height="36" />
@@ -185,14 +185,14 @@ export const SkeletonTable: React.FC<{
 }> = ({ rows = 5, columns = 4, className }) => (
   <div className={cn('space-y-3', className)}>
     {/* Header */}
-    <div className="flex gap-4 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl animate-pulse">
+    <div className="flex gap-4 px-4 py-3 bg-slate-50/50 rounded-xl animate-pulse">
       {Array.from({ length: columns }).map((_, i) => (
         <Skeleton key={i} variant="text" width={`${100 / columns}%`} />
       ))}
     </div>
     {/* Rows */}
     {Array.from({ length: rows }).map((_, rowIndex) => (
-      <div key={rowIndex} className="flex gap-4 px-4 py-3 border-b border-slate-200/70 dark:border-slate-700/70 animate-pulse">
+      <div key={rowIndex} className="flex gap-4 px-4 py-3 border-b border-slate-200/70 animate-pulse">
         {Array.from({ length: columns }).map((_, i) => (
           <Skeleton key={i} variant="text" width={`${100 / columns}%`} />
         ))}
@@ -204,7 +204,7 @@ export const SkeletonTable: React.FC<{
 export const SkeletonBookingForm: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={cn('bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-6 sm:p-8 animate-pulse space-y-6', className)}>
+  <div className={cn('bg-surface rounded-2xl border border-slate-200/80 p-6 sm:p-8 animate-pulse space-y-6', className)}>
     {/* Service Selection Grid */}
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <SkeletonServiceCard />
@@ -229,7 +229,7 @@ export const SkeletonBookingForm: React.FC<{
     {/* Alterations Grid */}
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="p-3.5 rounded-xl border border-slate-200/80 bg-white dark:bg-slate-800 dark:border-slate-700/80 flex items-center justify-between animate-pulse">
+        <div key={i} className="p-3.5 rounded-xl border border-slate-200/80 bg-surface flex items-center justify-between animate-pulse">
           <div className="space-y-1 max-w-[200px]">
             <Skeleton variant="text" width="80%" />
             <Skeleton variant="text" width="100%" />
@@ -274,7 +274,7 @@ export const SkeletonBookingForm: React.FC<{
     </div>
 
     {/* Price Breakdown */}
-    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-3 dark:bg-slate-800/50 dark:border-slate-700/80">
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Skeleton variant="text" width="100%" height="48px" />
         <Skeleton variant="text" width="100%" height="48px" />
@@ -295,7 +295,7 @@ export const SkeletonBookingForm: React.FC<{
 
     {/* Coupon & Payment */}
     <div className="space-y-4">
-      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 animate-pulse space-y-3 dark:bg-slate-800/50 dark:border-slate-700/80">
+      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 animate-pulse space-y-3">
         <div className="flex items-center gap-2">
           <Skeleton variant="circular" width="24" height="24" />
           <Skeleton variant="text" width="50%" />

@@ -23,6 +23,19 @@ import {
 // Background pattern SVG as constant to avoid escaping issues
 const BACKGROUND_PATTERN = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E";
 
+// Statuses a customer is allowed to cancel (mirrors the allow-list in the
+// cancel_order RPC). New orders are created as PENDING_PAYMENT, not
+// ORDER_PLACED, so gating the button on ORDER_PLACED made it unreachable.
+const CANCELLABLE_STATUSES: Order['status'][] = [
+  'PENDING_PAYMENT',
+  'CONFIRMED',
+  'PICKUP_ASSIGNED',
+  'PICKUP_SCHEDULED',
+  'PICKUP_STARTED',
+  'FAILED_PICKUP',
+  'ON_HOLD',
+];
+
 export const CustomerDashboardPage: React.FC = () => {
   const { currentUser, showToast } = useApp();
   const [activeTab, setActiveTab] = useState<'orders' | 'addresses' | 'subscription' | 'loyalty' | 'support'>('orders');
@@ -33,6 +46,16 @@ export const CustomerDashboardPage: React.FC = () => {
   const [loyalty, setLoyalty] = useState<LoyaltyAccount>({ user_id: '', balance: 0, history: [] });
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pins, setPins] = useState<Record<string, string>>({});
+
+  const loadPin = async (orderId: string) => {
+    try {
+      const pin = await orderService.getDeliveryPin(orderId);
+      if (pin) setPins((prev) => ({ ...prev, [orderId]: pin }));
+    } catch {
+      // PIN unavailable; the delivery flow remains secure server-side.
+    }
+  };
 
   // Modal States
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
@@ -140,6 +163,17 @@ export const CustomerDashboardPage: React.FC = () => {
     loadData();
   }, [currentUser]);
 
+  const activeOrderForPin = orders.find(
+    (o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED'
+  );
+  const activeOrderId = activeOrderForPin?.id;
+  useEffect(() => {
+    if (activeOrderId) loadPin(activeOrderId);
+  }, [activeOrderId]);
+  useEffect(() => {
+    if (receiptOrder) loadPin(receiptOrder.id);
+  }, [receiptOrder]);
+
   if (!currentUser) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
@@ -174,7 +208,7 @@ export const CustomerDashboardPage: React.FC = () => {
   const handleCancelOrder = async (orderId: string) => {
     if (confirm('Are you sure you want to cancel this booking?')) {
       try {
-        await orderService.updateOrderStatus(orderId, 'CANCELLED', 'Cancelled by customer', currentUser.id);
+        await orderService.cancelOrder(orderId, 'Cancelled by customer');
         await loadData();
         showToast('Order has been cancelled', 'info');
       } catch {
@@ -214,16 +248,16 @@ export const CustomerDashboardPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       {/* Top Welcome Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-xl relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-ink text-cream shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `url("${BACKGROUND_PATTERN}")` }} />
         <div className="relative space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold font-display text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold font-display text-cream">
               Hello, {currentUser.full_name}
             </h1>
             <Badge variant="mint" size="sm">{loyaltyTier} Member</Badge>
           </div>
-          <p className="text-xs sm:text-sm text-slate-300">
+          <p className="text-xs sm:text-sm text-cream/70">
             {currentUser.email} • {currentUser.phone}
           </p>
         </div>
@@ -234,12 +268,12 @@ export const CustomerDashboardPage: React.FC = () => {
               <Coins className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] text-slate-300 uppercase font-semibold">FreshPoints</div>
-              <div className="text-lg font-bold font-display text-white">{loyalty?.balance || 0} pts</div>
+              <div className="text-[11px] text-cream/70 uppercase font-semibold">FreshPoints</div>
+              <div className="text-lg font-bold font-display text-cream">{loyalty?.balance || 0} pts</div>
             </div>
           </div>
           <Link to="/booking">
-            <Button variant="coral" size="md" className="shadow-lg shadow-coral/30 text-xs sm:text-sm">
+            <Button variant="coral" size="md" className="shadow-lg shadow-ink/20 text-xs sm:text-sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
               Book New Pickup
             </Button>
@@ -249,7 +283,7 @@ export const CustomerDashboardPage: React.FC = () => {
 
       {/* Analytics Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-white to-slate-50">
+        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-surface to-slate-50">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[11px] text-slate-400 uppercase font-semibold">Total Spent</div>
@@ -265,7 +299,7 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-white to-slate-50">
+        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-surface to-slate-50">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[11px] text-slate-400 uppercase font-semibold">Total Orders</div>
@@ -282,7 +316,7 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-white to-slate-50">
+        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-surface to-slate-50">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[11px] text-slate-400 uppercase font-semibold">Avg. Order Value</div>
@@ -298,7 +332,7 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-white to-slate-50">
+        <Card className="p-5 border-slate-200/80 bg-gradient-to-br from-surface to-slate-50">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[11px] text-slate-400 uppercase font-semibold">Loyalty Tier</div>
@@ -325,7 +359,7 @@ export const CustomerDashboardPage: React.FC = () => {
       </div>
 
       {/* Monthly Spending Chart */}
-      <Card className="p-6 border-slate-200/80 bg-white shadow-sm">
+      <Card className="p-6 border-slate-200/80 bg-surface shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -362,7 +396,7 @@ export const CustomerDashboardPage: React.FC = () => {
 
       {/* Active Order Spotlight Banner */}
       {activeOrder && (
-        <Card className="p-6 sm:p-8 border-2 border-emerald-500/40 bg-white shadow-xl relative overflow-hidden">
+        <Card className="p-6 sm:p-8 border-2 border-emerald-500/40 bg-surface shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
           <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/70">
             <div className="space-y-2">
@@ -393,7 +427,7 @@ export const CustomerDashboardPage: React.FC = () => {
                   Doorstep Delivery PIN
                 </div>
                 <div className="text-3xl font-bold font-mono text-slate-900 tracking-widest">
-                  {activeOrder.delivery_pin}
+                  {pins[activeOrder.id] || '••••'}
                 </div>
                 <div className="text-[10px] text-slate-500">Share with rider only upon delivery</div>
               </div>
@@ -429,7 +463,7 @@ export const CustomerDashboardPage: React.FC = () => {
                   Live Visual Route
                 </Button>
               </Link>
-              {activeOrder.status === 'ORDER_PLACED' && (
+              {CANCELLABLE_STATUSES.includes(activeOrder.status) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -461,7 +495,7 @@ export const CustomerDashboardPage: React.FC = () => {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-2.5 rounded-full whitespace-nowrap transition-all flex items-center gap-2 ${
                 activeTab === tab.id
-                  ? 'bg-slate-900 text-white font-bold shadow-sm'
+                  ? 'bg-ink text-cream dark:bg-cream dark:text-ink font-bold shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
@@ -469,7 +503,7 @@ export const CustomerDashboardPage: React.FC = () => {
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  activeTab === tab.id ? 'bg-mint text-ink' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {tab.count}
                 </span>
@@ -490,7 +524,7 @@ export const CustomerDashboardPage: React.FC = () => {
                 className={`px-3 py-1.5 rounded-xl capitalize font-medium transition-all ${
                   orderFilter === filter
                     ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200/80'
-                    : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+                    : 'bg-surface text-slate-500 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {filter}
@@ -499,7 +533,7 @@ export const CustomerDashboardPage: React.FC = () => {
           </div>
 
           {filteredOrders.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/80 p-8 space-y-3">
+            <div className="text-center py-16 bg-surface rounded-3xl border border-slate-200/80 p-8 space-y-3">
               <Package className="w-12 h-12 text-slate-300 mx-auto" />
               <h3 className="text-lg font-bold font-display text-slate-900">No orders found</h3>
               <p className="text-xs text-slate-500">You don't have any orders under this filter.</p>
@@ -658,28 +692,28 @@ export const CustomerDashboardPage: React.FC = () => {
       {/* TAB 3: SUBSCRIPTIONS */}
       {activeTab === 'subscription' && (
         <div className="space-y-6">
-          <Card className="p-8 border-slate-200/80 bg-gradient-to-br from-white to-slate-50 space-y-6">
+          <Card className="p-8 border-slate-200/80 bg-gradient-to-br from-surface to-slate-50 space-y-6">
             <div className="flex items-start justify-between">
               <div>
                 <Badge variant="mint">No Active Pass</Badge>
                 <h3 className="text-xl font-bold font-display text-slate-900 mt-2">Monthly Laundry Pass</h3>
                 <p className="text-sm text-slate-500 mt-1">Subscribe to save up to 35% on every wash.</p>
               </div>
-              <div className="w-16 h-16 rounded-2xl bg-slate-900/10 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-ink/10 dark:bg-cream/10 flex items-center justify-center">
                 <Shield className="w-8 h-8 text-slate-900" />
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 text-center">
+              <div className="p-4 rounded-xl bg-surface border border-slate-200/80 text-center">
                 <div className="text-2xl font-bold font-display text-slate-900">35%</div>
                 <div className="text-xs text-slate-500">Max Savings</div>
               </div>
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 text-center">
+              <div className="p-4 rounded-xl bg-surface border border-slate-200/80 text-center">
                 <div className="text-2xl font-bold font-display text-slate-900">Unlimited</div>
                 <div className="text-xs text-slate-500">Free Pickups</div>
               </div>
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 text-center">
+              <div className="p-4 rounded-xl bg-surface border border-slate-200/80 text-center">
                 <div className="text-2xl font-bold font-display text-slate-900">Priority</div>
                 <div className="text-xs text-slate-500">Support</div>
               </div>
@@ -705,7 +739,7 @@ export const CustomerDashboardPage: React.FC = () => {
             ].map((benefit, idx) => {
               const Icon = benefit.icon;
               return (
-                <Card key={idx} className="p-5 border-slate-200/80 bg-white text-center space-y-2">
+                <Card key={idx} className="p-5 border-slate-200/80 bg-surface text-center space-y-2">
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
                     <Icon className="w-5 h-5" />
                   </div>
@@ -747,7 +781,7 @@ export const CustomerDashboardPage: React.FC = () => {
 
           {/* Loyalty Earning Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-5 border-slate-200/80 bg-white text-center space-y-2">
+            <Card className="p-5 border-slate-200/80 bg-surface text-center space-y-2">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
                 <TrendingUp className="w-5 h-5" />
               </div>
@@ -756,7 +790,7 @@ export const CustomerDashboardPage: React.FC = () => {
               </div>
               <div className="text-xs text-slate-500">Total Points Earned</div>
             </Card>
-            <Card className="p-5 border-slate-200/80 bg-white text-center space-y-2">
+            <Card className="p-5 border-slate-200/80 bg-surface text-center space-y-2">
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
                 <Target className="w-5 h-5" />
               </div>
@@ -765,7 +799,7 @@ export const CustomerDashboardPage: React.FC = () => {
               </div>
               <div className="text-xs text-slate-500">Total Points Redeemed</div>
             </Card>
-            <Card className="p-5 border-slate-200/80 bg-white text-center space-y-2">
+            <Card className="p-5 border-slate-200/80 bg-surface text-center space-y-2">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                 <Star className="w-5 h-5" />
               </div>
@@ -815,9 +849,10 @@ export const CustomerDashboardPage: React.FC = () => {
                 { name: 'Free Pickup & Delivery', cost: 800, icon: <MapPin className="w-5 h-5" /> },
                 { name: 'Premium Garment Care', cost: 2000, icon: <Star className="w-5 h-5" /> },
               ].map((reward, idx) => (
-                <div key={idx} className={`p-4 rounded-xl border transition-all ${loyalty.balance >= reward.cost ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white opacity-70'}`}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2 mx-auto 
-                    {loyalty.balance >= reward.cost ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
+                <div key={idx} className={`p-4 rounded-xl border transition-all ${loyalty.balance >= reward.cost ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-surface opacity-70'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 mx-auto ${
+                    loyalty.balance >= reward.cost ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                  }`}>
                     {reward.icon}
                   </div>
                   <div className="text-xs font-semibold text-slate-900 text-center mb-1">{reward.name}</div>
@@ -926,7 +961,7 @@ export const CustomerDashboardPage: React.FC = () => {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</label>
             <select
-              value={newTicketForm.category} // reuse category for priority for now
+              value={newTicketForm.priority}
               onChange={(e) => setNewTicketForm({...newTicketForm, priority: e.target.value as any})}
               className="w-full rounded-xl border-slate-200/80 text-sm p-3 border outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             >
@@ -1011,16 +1046,16 @@ export const CustomerDashboardPage: React.FC = () => {
               compact
             />
 
-            {receiptOrder.delivery_pin && (
-              <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between items-center">
-                <span className="text-xs text-slate-300">Secure Delivery Handover PIN</span>
-                <span className="font-mono font-bold tracking-widest text-emerald-400 text-sm">{receiptOrder.delivery_pin}</span>
+            {receiptOrder.id && pins[receiptOrder.id] && (
+              <div className="p-3 rounded-xl bg-ink text-cream flex justify-between items-center">
+                <span className="text-xs text-cream/70">Secure Delivery Handover PIN</span>
+                <span className="font-mono font-bold tracking-widest text-mint text-sm">{pins[receiptOrder.id]}</span>
               </div>
             )}
 
             <div className="text-[11px] text-slate-400 text-center">
-              FreshFold Laundry Services Pvt. Ltd. • GSTIN: 29AAFCS8712C1Z4
-            </div>
+                          FoldeD Laundry Services Pvt. Ltd. • GSTIN: 29AAFCS8712C1Z4
+                        </div>
           </div>
         )}
       </Modal>

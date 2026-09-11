@@ -39,7 +39,7 @@ export const ticketService = {
     });
   },
 
-  async createTicket(ticketData: { user_id: string; subject: string; message: string; category: string; order_id?: string }): Promise<SupportTicket> {
+  async createTicket(ticketData: { user_id: string; subject: string; message: string; category: string; priority?: string; order_id?: string }): Promise<SupportTicket> {
     const { data, error } = await supabase
       .from('support_tickets')
       .insert({
@@ -47,6 +47,7 @@ export const ticketService = {
         subject: ticketData.subject,
         description: ticketData.message,
         category: ticketData.category,
+        priority: ticketData.priority || 'medium',
         order_id: ticketData.order_id || null,
         status: 'open'
       } as any)

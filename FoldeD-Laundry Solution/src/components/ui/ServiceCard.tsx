@@ -71,8 +71,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
       className={cn(
         'relative group p-5 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden',
         isSelected
-          ? 'border-slate-900 bg-slate-50/70 shadow-lg ring-2 ring-slate-900/10 scale-[1.02]'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 hover:shadow-md hover:-translate-y-1'
+          ? 'border-ink dark:border-cream bg-slate-50/70 shadow-lg ring-2 ring-slate-900/10 scale-[1.02]'
+          : 'border-slate-200 bg-surface hover:border-slate-300 hover:bg-slate-50 hover:shadow-md hover:-translate-y-1'
       )}
       style={{ minHeight: '280px' }}
       aria-pressed={isSelected}
@@ -103,7 +103,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
         <div className={cn(
           'w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-all',
-          isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+          isSelected ? 'bg-ink text-cream dark:bg-cream dark:text-ink' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
         )}>
           <CategoryIcon className={cn(
             'transition-transform duration-300 group-hover:scale-110',
@@ -184,13 +184,13 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
 
       {/* Selection ring animation */}
       {isSelected && (
-        <div className="absolute inset-0 border-2 border-slate-900 rounded-2xl pointer-events-none animate-pulse" />
+        <div className="absolute inset-0 border-2 border-ink dark:border-cream rounded-2xl pointer-events-none animate-pulse" />
       )}
 
       {/* Selected checkmark */}
       {isSelected && (
         <div className="absolute bottom-3 right-3 z-20">
-          <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg animate-in zoom-in-95">
+          <div className="w-7 h-7 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink flex items-center justify-center shadow-lg animate-scale-in">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>

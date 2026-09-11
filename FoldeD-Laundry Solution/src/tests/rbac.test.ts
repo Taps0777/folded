@@ -4,14 +4,31 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
-const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const customer1Client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const customer2Client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// This suite exercises RLS against a real Supabase project, so it needs
+// credentials. Skip (rather than fail) when they are absent — CI runs the
+// offline unit suite only, and `npm test` stays green without a backend.
+const hasLiveCreds = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const describeIfLive = hasLiveCreds ? describe : describe.skip;
+
+// createClient() throws on an empty URL, so fall back to inert placeholders
+// when the suite is skipped. No request is ever issued in that case.
+const supabaseAnon = createClient(
+  hasLiveCreds ? SUPABASE_URL : 'http://localhost:54321',
+  hasLiveCreds ? SUPABASE_ANON_KEY : 'anon-key-not-configured',
+);
+const customer1Client = createClient(
+  hasLiveCreds ? SUPABASE_URL : 'http://localhost:54321',
+  hasLiveCreds ? SUPABASE_ANON_KEY : 'anon-key-not-configured',
+);
+const customer2Client = createClient(
+  hasLiveCreds ? SUPABASE_URL : 'http://localhost:54321',
+  hasLiveCreds ? SUPABASE_ANON_KEY : 'anon-key-not-configured',
+);
 
 let customer1User: any = null;
 let customer2User: any = null;
 
-describe('RBAC Security Tests', () => {
+describeIfLive('RBAC Security Tests', () => {
   beforeAll(async () => {
     // 1. Register test users
     const email1 = `test_c1_${Date.now()}@example.com`;

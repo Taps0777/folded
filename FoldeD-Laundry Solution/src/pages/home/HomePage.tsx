@@ -48,13 +48,27 @@ export const HomePage: React.FC = () => {
   const [services, setServices] = useState<any[]>([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
 
+  // Interactive Calculator state. Declared before the loader effect below so the
+  // effect can safely reference setCalcServiceId during its callback.
+  const [calcServiceId, setCalcServiceId] = useState('srv_wash_fold');
+  const [calcWeight, setCalcWeight] = useState(4); // 4 kg
+
   React.useEffect(() => {
     const loadData = async () => {
       try {
         const { serviceService } = await import('../../services/api/serviceService');
         // Fetch real services from DB
         const dbServices = await serviceService.getAllServices();
-        setServices(dbServices.length > 0 ? dbServices : StorageService.getServices());
+        const list = dbServices.length > 0 ? dbServices : StorageService.getServices();
+        setServices(list);
+        // The initial id is a mock ('srv_wash_fold') that won't exist in the DB.
+        // Point the selector at a real service once the list arrives, otherwise
+        // the estimator highlights nothing and forwards a dead id to /booking.
+        if (list.length > 0) {
+          setCalcServiceId((current) =>
+            list.some((s) => s.id === current) ? current : list[0].id
+          );
+        }
         
         // Use StorageService for subscriptions as fallback since we didn't build subscriptionService yet
         setSubscriptionPlans(StorageService.getSubscriptions());
@@ -82,8 +96,6 @@ export const HomePage: React.FC = () => {
   const [pincodeResult, setPincodeResult] = useState<{ checked: boolean; serviceable: boolean; areaName?: string } | null>(null);
 
   // Interactive Calculator state
-  const [calcServiceId, setCalcServiceId] = useState('srv_wash_fold');
-  const [calcWeight, setCalcWeight] = useState(4); // 4 kg
   const [calcPieces, setCalcPieces] = useState<{ [key: string]: number }>({
     shirts: 4,
     trousers: 3,
@@ -92,19 +104,22 @@ export const HomePage: React.FC = () => {
   });
   const [calcMode, setCalcMode] = useState<'kg' | 'pieces'>('kg');
 
-  const selectedService = services.find((s) => s.id === calcServiceId) || services[0] || StorageService.getServices()[0];
+  const selectedService =
+    services.find((s) => s.id === calcServiceId) ?? services[0] ?? StorageService.getServices()[0] ?? null;
 
   // Calculate estimated price
   let estimatedPrice = 0;
-  if (calcMode === 'kg') {
-    estimatedPrice = Math.round(selectedService.base_price * calcWeight);
-  } else {
-    const totalPieces = Object.values(calcPieces).reduce((a, b) => a + b, 0);
-    // Estimated ~200g per piece
-    const estimatedKg = Math.max(1, totalPieces * 0.25);
-    estimatedPrice = selectedService.pricing_type === 'per_kg'
-      ? Math.round(selectedService.base_price * estimatedKg)
-      : selectedService.base_price * totalPieces;
+  if (selectedService) {
+    if (calcMode === 'kg') {
+      estimatedPrice = Math.round((selectedService.base_price ?? 0) * calcWeight);
+    } else {
+      const totalPieces = Object.values(calcPieces).reduce((a, b) => a + b, 0);
+      // Estimated ~200g per piece
+      const estimatedKg = Math.max(1, totalPieces * 0.25);
+      estimatedPrice = selectedService.pricing_type === 'per_kg'
+        ? Math.round((selectedService.base_price ?? 0) * estimatedKg)
+        : (selectedService.base_price ?? 0) * totalPieces;
+    }
   }
 
   const handleCheckPincode = async (e: React.FormEvent) => {
@@ -195,17 +210,22 @@ export const HomePage: React.FC = () => {
   return (
     <div className="space-y-20 pb-20">
       {/* Clean, Sleek, and Elegant Hero Section */}
-      <section className="relative overflow-hidden bg-white border-b border-slate-200/70 pt-12 pb-16 lg:pt-20 lg:pb-24">
+      <section className="relative overflow-hidden bg-surface border-b border-slate-200/70 pt-12 pb-16 lg:pt-20 lg:pb-24">
+        {/* Brand glow — mint bloom behind the headline, fixed accent in both modes */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 -left-24 w-[36rem] h-[36rem] rounded-full bg-mint/10 blur-3xl"
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
             {/* Left Headline */}
             <div className="lg:col-span-7 space-y-6 text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mint/10 border border-mint/25 text-xs font-medium text-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse" />
                 <span>Doorstep Garment Care • 7-Stage Quality Wash</span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold font-display tracking-tight text-slate-900 leading-[1.08]">
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold font-display tracking-tight text-foreground leading-[1.08]">
                 Crisp, fresh clothes. <br />
                 <span className="text-slate-400 font-normal">Delivered to your door.</span>
               </h1>
@@ -218,7 +238,7 @@ export const HomePage: React.FC = () => {
               <div className="pt-2 max-w-md space-y-2">
                 <form
                   onSubmit={handleCheckPincode}
-                  className="flex gap-2 p-1.5 rounded-full bg-white border border-slate-200 shadow-sm focus-within:border-slate-900 transition-colors"
+                  className="flex gap-2 p-1.5 rounded-full bg-surface border border-slate-200 shadow-sm focus-within:border-ink dark:focus-within:border-cream transition-colors"
                 >
                   <div className="relative flex-1">
                     <MapPin className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
@@ -233,7 +253,7 @@ export const HomePage: React.FC = () => {
                   </div>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-full bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition-all shadow-xs active:scale-95"
+                    className="px-5 py-2 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink font-medium text-xs hover:bg-ink/90 dark:hover:bg-cream/90 transition-all shadow-xs active:scale-95"
                   >
                     Check
                   </button>
@@ -277,7 +297,7 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {pincodeResult?.checked && (
-                  <div className="mt-2 text-xs font-medium animate-in fade-in">
+                  <div className="mt-2 text-xs font-medium animate-fade-in">
                     {pincodeResult.serviceable ? (
                       <span className="text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 inline-flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
@@ -295,13 +315,13 @@ export const HomePage: React.FC = () => {
               {/* CTAs */}
               <div className="pt-3 flex flex-wrap items-center gap-3.5">
                 <Link to="/booking">
-                  <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 font-medium text-sm shadow-xs transition-all active:scale-95">
+                  <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink hover:bg-ink/90 dark:hover:bg-cream/90 font-medium text-sm shadow-xs transition-all active:scale-95">
                     Book Pickup in 60s
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </Link>
                 <a href="#calculator">
-                  <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-all">
+                  <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-surface border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-all">
                     Estimate Price
                   </button>
                 </a>
@@ -313,7 +333,7 @@ export const HomePage: React.FC = () => {
 
             {/* Right Hero Visual Card */}
             <div className="lg:col-span-5">
-              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] space-y-6 text-slate-900">
+              <div className="p-6 sm:p-8 rounded-3xl bg-surface border border-slate-200/70 shadow-card space-y-6 text-foreground">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
@@ -376,7 +396,7 @@ export const HomePage: React.FC = () => {
 
       {/* Quick Metrics Strip */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/70 shadow-xs">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 sm:p-8 rounded-3xl bg-surface border border-slate-200/70 shadow-xs">
           <div className="space-y-1 border-r border-slate-100 pr-4">
             <div className="text-3xl sm:text-4xl font-bold font-display text-slate-900">48,000+</div>
             <div className="text-xs text-slate-500 font-medium">Kilograms Cleaned & Folded</div>
@@ -410,7 +430,7 @@ export const HomePage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Controls */}
-          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
+          <div className="lg:col-span-7 bg-surface p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
             {/* Service Selection Pills */}
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -423,8 +443,8 @@ export const HomePage: React.FC = () => {
                     onClick={() => setCalcServiceId(srv.id)}
                     className={`p-3 rounded-xl text-left border transition-all text-xs ${
                       calcServiceId === srv.id
-                        ? 'border-slate-900 bg-slate-900 text-white font-medium shadow-xs'
-                        : 'border-slate-200 bg-slate-50/50 hover:bg-white text-slate-700'
+                        ? 'border-ink dark:border-cream bg-ink text-cream dark:bg-cream dark:text-ink font-medium shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 hover:bg-surface text-slate-700'
                     }`}
                   >
                     <div className="truncate font-semibold">{srv.name}</div>
@@ -446,7 +466,7 @@ export const HomePage: React.FC = () => {
                   <button
                     onClick={() => setCalcMode('kg')}
                     className={`px-3 py-1 rounded-md transition-all font-medium ${
-                      calcMode === 'kg' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                      calcMode === 'kg' ? 'bg-surface text-slate-900 shadow-xs' : 'text-slate-500'
                     }`}
                   >
                     By Weight (kg)
@@ -454,7 +474,7 @@ export const HomePage: React.FC = () => {
                   <button
                     onClick={() => setCalcMode('pieces')}
                     className={`px-3 py-1 rounded-md transition-all font-medium ${
-                      calcMode === 'pieces' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                      calcMode === 'pieces' ? 'bg-surface text-slate-900 shadow-xs' : 'text-slate-500'
                     }`}
                   >
                     By Garment Count
@@ -501,7 +521,7 @@ export const HomePage: React.FC = () => {
                               [item.key]: Math.max(0, (prev[item.key] || 0) - 1),
                             }))
                           }
-                          className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                          className="w-7 h-7 rounded-full bg-surface border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
                         >
                           -
                         </button>
@@ -513,7 +533,7 @@ export const HomePage: React.FC = () => {
                               [item.key]: (prev[item.key] || 0) + 1,
                             }))
                           }
-                          className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                          className="w-7 h-7 rounded-full bg-surface border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
                         >
                           +
                         </button>
@@ -526,41 +546,45 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Output Card */}
-          <div className="lg:col-span-5 bg-slate-900 p-6 sm:p-8 rounded-2xl text-white shadow-sm border border-slate-800 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div className="lg:col-span-5 bg-ink p-6 sm:p-8 rounded-2xl text-cream shadow-sm border border-cream/10 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-cream/10">
+              <span className="text-xs font-semibold uppercase tracking-wider text-cream/60">
                 Estimate Summary
               </span>
               <Badge variant="mint">Ready to Book</Badge>
             </div>
 
             <div className="space-y-4">
-              <div className="flex justify-between items-center text-sm text-slate-300">
+              <div className="flex justify-between items-center text-sm text-cream/70">
                 <span>Selected Service:</span>
-                <span className="font-semibold text-white">{selectedService.name}</span>
+                <span className="font-semibold text-cream">{selectedService?.name ?? 'Select a service'}</span>
               </div>
-              <div className="flex justify-between items-center text-sm text-slate-300">
+              <div className="flex justify-between items-center text-sm text-cream/70">
                 <span>Base Rate:</span>
-                <span className="font-mono text-white">
-                  {formatCurrency(selectedService.base_price)} / {selectedService.pricing_type === 'per_kg' ? 'kg' : 'item'}
+                <span className="font-mono text-cream">
+                  {selectedService
+                    ? `${formatCurrency(selectedService.base_price ?? 0)} / ${selectedService.pricing_type === 'per_kg' ? 'kg' : 'item'}`
+                    : '—'}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm text-slate-300">
+              <div className="flex justify-between items-center text-sm text-cream/70">
                 <span>Estimated Turnaround:</span>
-                <span className="font-semibold text-white">{selectedService.turnaround_hours} Hours</span>
+                <span className="font-semibold text-cream">
+                  {selectedService?.turnaround_hours ? `${selectedService.turnaround_hours} Hours` : '—'}
+                </span>
               </div>
-              <div className="flex justify-between items-center text-sm text-slate-300">
+              <div className="flex justify-between items-center text-sm text-cream/70">
                 <span>Doorstep Pickup & Delivery:</span>
-                <span className="text-emerald-400 font-semibold">FREE (Over ₹199)</span>
+                <span className="text-mint font-semibold">FREE (Over ₹199)</span>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-800 space-y-1">
-              <div className="text-xs text-slate-400">Estimated Total:</div>
-              <div className="text-4xl font-bold font-display text-white">
+            <div className="pt-4 border-t border-cream/10 space-y-1">
+              <div className="text-xs text-cream/60">Estimated Total:</div>
+              <div className="text-4xl font-bold font-display text-cream">
                 {formatCurrency(estimatedPrice)}
               </div>
-              <div className="text-[11px] text-slate-400">
+              <div className="text-[11px] text-cream/60">
                 *Final bill adjusted based on actual scale weight measured at doorstep pickup.
               </div>
             </div>
@@ -583,7 +607,7 @@ export const HomePage: React.FC = () => {
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
           <Badge variant="slate">Simple 4-Step Process</Badge>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
-            How FreshFold Works
+            How FoldeD Works
           </h2>
           <p className="text-slate-500 text-sm sm:text-base">
             From your laundry basket to crisp, organized closet shelves in 24 hours.
@@ -621,7 +645,7 @@ export const HomePage: React.FC = () => {
             return (
               <div
                 key={item.step}
-                className="p-6 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-300 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col justify-between"
+                className="p-6 rounded-2xl bg-surface border border-slate-200/80 hover:border-slate-300 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -689,14 +713,14 @@ export const HomePage: React.FC = () => {
           {subscriptionPlans.map((plan) => (
             <div
               key={plan.id}
-              className={`p-7 rounded-2xl flex flex-col justify-between relative bg-white transition-all ${
+              className={`p-7 rounded-2xl flex flex-col justify-between relative bg-surface transition-all ${
                 plan.recommended
-                  ? 'border-2 border-slate-900 shadow-md'
+                  ? 'border-2 border-ink dark:border-cream shadow-md'
                   : 'border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
               }`}
             >
               {plan.recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-3 py-0.5 rounded-full uppercase tracking-wider">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-ink text-cream dark:bg-cream dark:text-ink text-[10px] font-semibold px-3 py-0.5 rounded-full uppercase tracking-wider">
                   Most Popular
                 </div>
               )}
@@ -742,7 +766,7 @@ export const HomePage: React.FC = () => {
       {/* B2B Commercial & Bulk Order Calculator */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-          <Badge variant="slate">FreshFold Commercial & Enterprise</Badge>
+          <Badge variant="slate">FoldeD Commercial & Enterprise</Badge>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
             B2B Bulk Laundry & Linen Calculator
           </h2>
@@ -768,8 +792,8 @@ export const HomePage: React.FC = () => {
                 onClick={() => setB2bSector(sector.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all ${
                   isSelected
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80'
+                    ? 'bg-ink text-cream dark:bg-cream dark:text-ink shadow-xs'
+                    : 'bg-surface text-slate-600 hover:bg-slate-50 border border-slate-200/80'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`} />
@@ -782,7 +806,7 @@ export const HomePage: React.FC = () => {
         {/* Calculator Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Left Column: Volume Slider & Tier Perks */}
-          <div className="lg:col-span-7 p-6 sm:p-8 space-y-6 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="lg:col-span-7 p-6 sm:p-8 space-y-6 rounded-2xl bg-surface border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -831,7 +855,7 @@ export const HomePage: React.FC = () => {
                     onClick={() => setB2bMonthlyKg(kg)}
                     className={`px-2.5 py-1 text-xs rounded-lg font-mono border transition-all ${
                       b2bMonthlyKg === kg
-                        ? 'bg-slate-900 text-white border-slate-900 font-medium'
+                        ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink dark:border-cream font-medium'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -856,7 +880,7 @@ export const HomePage: React.FC = () => {
                     className={`py-1.5 px-2 rounded text-[11px] font-medium border ${
                       b2bDiscountPct === 15
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
-                        : 'bg-white border-slate-200 text-slate-400'
+                        : 'bg-surface border-slate-200 text-slate-400'
                     }`}
                   >
                     100-299 kg (15%)
@@ -865,7 +889,7 @@ export const HomePage: React.FC = () => {
                     className={`py-1.5 px-2 rounded text-[11px] font-medium border ${
                       b2bDiscountPct === 25
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
-                        : 'bg-white border-slate-200 text-slate-400'
+                        : 'bg-surface border-slate-200 text-slate-400'
                     }`}
                   >
                     300-799 kg (25%)
@@ -874,7 +898,7 @@ export const HomePage: React.FC = () => {
                     className={`py-1.5 px-2 rounded text-[11px] font-medium border ${
                       b2bDiscountPct === 35
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
-                        : 'bg-white border-slate-200 text-slate-400'
+                        : 'bg-surface border-slate-200 text-slate-400'
                     }`}
                   >
                     800+ kg (35%)
@@ -906,18 +930,18 @@ export const HomePage: React.FC = () => {
 
           {/* Right Column: Live Cost Estimation & Quote CTA */}
           <div className="lg:col-span-5 flex flex-col">
-            <div className="h-full p-6 sm:p-8 rounded-2xl bg-slate-900 text-white flex flex-col justify-between relative border border-slate-800 shadow-sm">
+            <div className="h-full p-6 sm:p-8 rounded-2xl bg-ink text-cream flex flex-col justify-between relative border border-cream/10 shadow-sm">
               <div className="space-y-6 relative z-10">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center justify-between border-b border-cream/10 pb-4">
                   <div>
-                    <span className="text-xs font-mono tracking-wider text-slate-400 uppercase">
+                    <span className="text-xs font-mono tracking-wider text-cream/60 uppercase">
                       Commercial Rate
                     </span>
                     <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-3xl font-bold font-mono text-white">
+                      <span className="text-3xl font-bold font-mono text-cream">
                         ₹{b2bCommercialRate}
                       </span>
-                      <span className="text-xs text-slate-400 font-normal">/ kg</span>
+                      <span className="text-xs text-cream/60 font-normal">/ kg</span>
                       <span className="text-xs text-slate-500 line-through">₹95/kg retail</span>
                     </div>
                   </div>
@@ -928,37 +952,37 @@ export const HomePage: React.FC = () => {
 
                 {/* Breakdown Summary */}
                 <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between items-center text-slate-300">
+                  <div className="flex justify-between items-center text-cream/70">
                     <span>Monthly Volume:</span>
-                    <span className="font-mono font-medium text-white">{b2bMonthlyKg} kg</span>
+                    <span className="font-mono font-medium text-cream">{b2bMonthlyKg} kg</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-300">
+                  <div className="flex justify-between items-center text-cream/70">
                     <span>Standard Retail Value:</span>
                     <span className="font-mono line-through text-slate-500">
                       {formatCurrency(b2bRetailEst)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-emerald-400 font-medium">
+                  <div className="flex justify-between items-center text-mint font-medium">
                     <span>Estimated Monthly Savings:</span>
                     <span className="font-mono font-semibold">-{formatCurrency(b2bMonthlySavings)}</span>
                   </div>
-                  <div className="border-t border-slate-800 pt-3 flex justify-between items-baseline">
+                  <div className="border-t border-cream/10 pt-3 flex justify-between items-baseline">
                     <div>
-                      <span className="text-sm font-semibold text-white block">Net Monthly Contract</span>
-                      <span className="text-[11px] text-slate-400">Exclusive of 18% GST</span>
+                      <span className="text-sm font-semibold text-cream block">Net Monthly Contract</span>
+                      <span className="text-[11px] text-cream/60">Exclusive of 18% GST</span>
                     </div>
-                    <span className="text-2xl sm:text-3xl font-bold font-mono text-white">
+                    <span className="text-2xl sm:text-3xl font-bold font-mono text-cream">
                       {formatCurrency(b2bMonthlyTotal)}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-medium text-white">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <div className="p-3.5 rounded-xl bg-cream/5 border border-cream/10 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-medium text-cream">
+                    <Clock className="w-3.5 h-3.5 text-cream/60" />
                     Guaranteed SLA: {currentSector.turnaround}
                   </div>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-cream/60">
                     Dedicated account manager & complimentary initial test batch (50 kg).
                   </p>
                 </div>
@@ -975,7 +999,7 @@ export const HomePage: React.FC = () => {
                   <FileText className="w-4 h-4" />
                   Request Corporate Proposal
                 </Button>
-                <p className="text-center text-[11px] text-slate-400">
+                <p className="text-center text-[11px] text-cream/60">
                   No commitment required. Custom service agreements available.
                 </p>
               </div>
@@ -986,9 +1010,9 @@ export const HomePage: React.FC = () => {
 
       {/* 7-Point Quality Guarantee Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="p-8 sm:p-12 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] relative overflow-hidden">
+        <div className="p-8 sm:p-12 rounded-2xl bg-surface border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] relative overflow-hidden">
           <div className="max-w-3xl space-y-5">
-            <Badge variant="slate">The FreshFold 7-Point Guarantee</Badge>
+            <Badge variant="slate">The FoldeD 7-Point Guarantee</Badge>
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
               Every Garment Inspected Before It Leaves Our Facility.
             </h2>
@@ -1038,7 +1062,7 @@ export const HomePage: React.FC = () => {
         <form onSubmit={handleB2bSubmit} className="space-y-4 pt-2">
           <div className="p-3 bg-mint-soft rounded-xl flex items-center justify-between text-xs">
             <span className="font-semibold text-mint-dark">Selected Tier: {currentSector.name}</span>
-            <span className="font-mono font-bold text-ink">
+            <span className="font-mono font-bold text-foreground">
               {b2bMonthlyKg} kg/mo @ ₹{b2bCommercialRate}/kg
             </span>
           </div>

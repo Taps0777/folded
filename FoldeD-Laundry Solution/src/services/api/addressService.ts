@@ -11,7 +11,7 @@ export const addressService = {
 
     if (error) throw error;
 
-    return data.map((d: any) => ({
+    return (data || []).map((d: any) => ({
       id: d.id,
       user_id: d.user_id,
       name: d.label || 'Address',
@@ -48,9 +48,21 @@ export const addressService = {
   },
 
   async setDefaultAddress(userId: string, addressId: string) {
-    // Unset all others
-    await supabase.from('addresses').update({ is_default: false } as any).eq('user_id', userId);
-    // Set new default
-    await supabase.from('addresses').update({ is_default: true } as any).eq('id', addressId);
+    // Set the new default FIRST, then clear the others. The previous order
+    // (unset everything, then set) left the user with zero default addresses if
+    // the second update failed — and neither error was checked.
+    const { error: setError } = await supabase
+      .from('addresses')
+      .update({ is_default: true } as any)
+      .eq('id', addressId)
+      .eq('user_id', userId);
+    if (setError) throw setError;
+
+    const { error: unsetError } = await supabase
+      .from('addresses')
+      .update({ is_default: false } as any)
+      .eq('user_id', userId)
+      .neq('id', addressId);
+    if (unsetError) throw unsetError;
   }
 };

@@ -79,6 +79,42 @@ export type Database = {
           },
         ]
       }
+      alteration_services: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: number
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          unit?: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           active: boolean | null
@@ -658,7 +694,10 @@ export type Database = {
           created_at: string | null
           description: string | null
           estimated_processing_hours: number | null
+          express_surcharge: number | null
           id: string
+          maximum_quantity: number | null
+          minimum_quantity: number | null
           name: string
           price_per_kg: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -670,7 +709,10 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_processing_hours?: number | null
+          express_surcharge?: number | null
           id?: string
+          maximum_quantity?: number | null
+          minimum_quantity?: number | null
           name: string
           price_per_kg?: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -682,7 +724,10 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_processing_hours?: number | null
+          express_surcharge?: number | null
           id?: string
+          maximum_quantity?: number | null
+          minimum_quantity?: number | null
           name?: string
           price_per_kg?: number | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
@@ -844,7 +889,9 @@ export type Database = {
         }
         Returns: Json
       }
+      earn_loyalty_points: { Args: { p_order_id: string }; Returns: undefined }
       get_auth_user_role: { Args: never; Returns: string }
+      initiate_refund: { Args: { p_order_id: string }; Returns: undefined }
       process_payment_webhook: {
         Args: { p_amount: number; p_order_id: string; p_transaction_id: string }
         Returns: string
@@ -857,6 +904,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: undefined
+      }
+      validate_coupon: {
+        Args: { p_code: string; p_subtotal: number }
+        Returns: Json
       }
     }
     Enums: {

@@ -13,7 +13,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5 text-left">
         {label && (
-          <label className="text-xs font-semibold uppercase tracking-wider text-ink/70">
+          <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
             {label}
           </label>
         )}
@@ -26,7 +26,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              "w-full rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-sm transition-all focus:border-mint focus:ring-2 focus:ring-mint/20 outline-none text-ink placeholder:text-slate-400",
+              "w-full rounded-xl border border-slate-300/80 bg-surface px-4 py-2.5 text-sm transition-all focus:border-mint focus:ring-2 focus:ring-mint/20 outline-none text-foreground placeholder:text-slate-400",
               icon && "pl-10",
               error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
               className

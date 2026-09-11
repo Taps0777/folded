@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { formatCurrency, formatDate } from '../../utils/formatters';
-import type { OrderStatus, Service, SupportTicket } from '../../types';
+import type { Order, OrderStatus, Service, SupportTicket } from '../../types';
+import { ALLOWED_TRANSITIONS } from '../../lib/orderStateMachine';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -19,7 +20,6 @@ import {
   Cell,
 } from 'recharts';
 import {
-  TrendingUp,
   Package,
   Truck,
   Search,
@@ -28,7 +28,9 @@ import {
   Clock,
 } from 'lucide-react';
 
-// Recharts dummy analytics data
+// Static sample series for the analytics charts. NOT computed from the orders
+// table — the UI labels these charts "Sample data". Replace with a real
+// aggregation query before treating them as operational metrics.
 const REVENUE_TREND_DATA = [
   { day: 'Mon', revenue: 14200, orders: 34 },
   { day: 'Tue', revenue: 18400, orders: 42 },
@@ -100,6 +102,9 @@ export const AdminDashboardPage: React.FC = () => {
   const inFacilityCount = orders.filter((o) =>
     ['RECEIVED_AT_FACILITY', 'SORTING', 'WASHING', 'DRYING', 'IRONING_FOLDING', 'QUALITY_CHECK'].includes(o.status)
   ).length;
+  const deliveredCount = orders.filter(
+    (o) => o.status === 'DELIVERED' || o.status === 'COMPLETED'
+  ).length;
 
   // Filtered orders list
   const filteredOrders = orders.filter((order) => {
@@ -114,14 +119,49 @@ export const AdminDashboardPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleQuickStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleQuickStatusChange = async (order: Order, newStatus: OrderStatus) => {
+    // Settling payment is a hard prerequisite for delivery on the normal path.
+    // admin_override_status skips that check, so guard it here.
+    if (newStatus === 'DELIVERED' && order.payment_status !== 'SUCCESS') {
+      showToast('Cannot mark delivered: payment has not been settled for this order.', 'error');
+      return;
+    }
+
+    // Several of these buttons intentionally jump the pipeline
+    // (PICKUP_ASSIGNED -> RECEIVED_AT_FACILITY skips PICKED_UP, WASHING ->
+    // READY_FOR_DELIVERY skips drying/pressing/QC). Surface the override instead
+    // of silently advancing past stages the staff never worked.
+    const isNormalTransition = ALLOWED_TRANSITIONS[order.status]?.includes(newStatus) ?? false;
+    if (!isNormalTransition) {
+      const confirmed = confirm(
+        `Override pipeline?\n\n${order.status} → ${newStatus} is not a normal transition and will skip intermediate stages. This is recorded against your admin account.`
+      );
+      if (!confirmed) return;
+    }
+
     try {
       const { orderService } = await import('../../services/api/orderService');
-      await orderService.updateOrderStatus(orderId, newStatus, 'Status overridden by Control Tower Admin', 'Admin');
+      await orderService.adminOverrideStatus(
+        order.id,
+        newStatus,
+        `Dispatch tower override: ${order.status} → ${newStatus}`
+      );
       await loadData();
-      showToast(`Order ${orderId} status set to ${newStatus}`, 'success');
+      showToast(`Order ${order.id} status set to ${newStatus}`, 'success');
     } catch {
       showToast('Failed to update status', 'error');
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('Cancel this order? A refund will be processed for paid orders.')) return;
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      await orderService.cancelOrder(orderId, 'Cancelled by admin');
+      await loadData();
+      showToast('Order cancelled', 'info');
+    } catch {
+      showToast('Failed to cancel order', 'error');
     }
   };
 
@@ -157,7 +197,7 @@ export const AdminDashboardPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-ink dark:border-cream border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -165,16 +205,16 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       {/* Admin Operations Top Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-ink text-white shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-ink text-cream shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-mint animate-pulse" />
             <Badge variant="mint" size="sm">Central Control Tower</Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-display text-white mt-1">
-            FreshFold Operations Command
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-cream mt-1">
+            FoldeD Operations Command
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-cream/60">
             Real-time logistics monitoring, live fleet status, pricing controls, and support escalation.
           </p>
         </div>
@@ -184,7 +224,7 @@ export const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveAdminTab('dispatch')}
             className={`px-3 py-2 rounded-xl font-bold transition-all ${
-              activeAdminTab === 'dispatch' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              activeAdminTab === 'dispatch' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
             }`}
           >
             Dispatch Tower
@@ -192,7 +232,7 @@ export const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveAdminTab('analytics')}
             className={`px-3 py-2 rounded-xl font-bold transition-all ${
-              activeAdminTab === 'analytics' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              activeAdminTab === 'analytics' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
             }`}
           >
             Metrics &amp; Recharts
@@ -200,7 +240,7 @@ export const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveAdminTab('pricing')}
             className={`px-3 py-2 rounded-xl font-bold transition-all ${
-              activeAdminTab === 'pricing' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              activeAdminTab === 'pricing' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
             }`}
           >
             Pricing &amp; Areas
@@ -208,7 +248,7 @@ export const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveAdminTab('tickets')}
             className={`px-3 py-2 rounded-xl font-bold transition-all ${
-              activeAdminTab === 'tickets' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+              activeAdminTab === 'tickets' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
             }`}
           >
             Tickets ({tickets.filter((t) => t.status === 'open').length})
@@ -218,18 +258,18 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <Card className="p-6 border-ink/5 bg-white space-y-2">
+        <Card className="p-6 border-slate-200/70 bg-surface space-y-2">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase tracking-wider">Total Platform Sales</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-3xl font-bold font-display text-ink">{formatCurrency(totalRevenue)}</div>
-          <div className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +18.4% from last week
+          <div className="text-3xl font-bold font-display text-foreground">{formatCurrency(totalRevenue)}</div>
+          <div className="text-[11px] text-slate-500 font-medium">
+            All non-cancelled orders
           </div>
         </Card>
 
-        <Card className="p-6 border-ink/5 bg-white space-y-2">
+        <Card className="p-6 border-slate-200/70 bg-surface space-y-2">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase tracking-wider">Active Pipeline</span>
             <Package className="w-4 h-4 text-blue-500" />
@@ -238,29 +278,29 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="text-[11px] text-slate-500">Live across pickup &amp; delivery</div>
         </Card>
 
-        <Card className="p-6 border-ink/5 bg-white space-y-2">
+        <Card className="p-6 border-slate-200/70 bg-surface space-y-2">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase tracking-wider">In-Facility Load</span>
             <Truck className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-3xl font-bold font-display text-purple-600">{inFacilityCount} batches</div>
-          <div className="text-[11px] text-purple-600 font-medium">Operating at 68% capacity</div>
+          <div className="text-[11px] text-slate-500 font-medium">Currently in processing</div>
         </Card>
 
-        <Card className="p-6 border-ink/5 bg-white space-y-2">
+        <Card className="p-6 border-slate-200/70 bg-surface space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">On-Time SLA</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Completed Deliveries</span>
             <Clock className="w-4 h-4 text-mint" />
           </div>
-          <div className="text-3xl font-bold font-display text-mint-dark">98.6%</div>
-          <div className="text-[11px] text-slate-500">Average 21.4 hrs turnaround</div>
+          <div className="text-3xl font-bold font-display text-mint-dark">{deliveredCount}</div>
+          <div className="text-[11px] text-slate-500">Handed over successfully</div>
         </Card>
       </div>
 
       {/* TAB 1: DISPATCH & ORDER MANAGEMENT TABLE */}
       {activeAdminTab === 'dispatch' && (
         <div className="space-y-6">
-          <Card className="p-6 border-ink/5 bg-white shadow-card space-y-6">
+          <Card className="p-6 border-slate-200/70 bg-surface shadow-card space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               {/* Search Bar */}
               <div className="relative flex-1 max-w-md">
@@ -270,7 +310,7 @@ export const AdminDashboardPage: React.FC = () => {
                   placeholder="Search by Order ID, Customer Name or Phone..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-3 rounded-xl border border-ink/15 text-xs outline-none focus:border-mint"
+                  className="w-full h-10 pl-10 pr-3 rounded-xl border border-slate-300/80 text-xs outline-none focus:border-mint"
                 />
               </div>
 
@@ -280,7 +320,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <select
                   value={selectedStatusFilter}
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-ink/15 text-xs outline-none bg-white focus:border-mint"
+                  className="h-10 px-3 rounded-xl border border-slate-300/80 text-xs outline-none bg-surface focus:border-mint"
                 >
                   <option value="ALL">All Statuses ({orders.length})</option>
                   <option value="ORDER_PLACED">ORDER_PLACED</option>
@@ -303,7 +343,6 @@ export const AdminDashboardPage: React.FC = () => {
                     <th className="py-3 px-2">Customer</th>
                     <th className="py-3 px-2">Service &amp; Weight</th>
                     <th className="py-3 px-2">Amount</th>
-                    <th className="py-3 px-2">Security PIN</th>
                     <th className="py-3 px-2">Status</th>
                     <th className="py-3 px-2 text-right">Admin Action Override</th>
                   </tr>
@@ -318,34 +357,30 @@ export const AdminDashboardPage: React.FC = () => {
                   ) : (
                     filteredOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 px-2 font-mono font-bold text-ink">
+                        <td className="py-3 px-2 font-mono font-bold text-foreground">
                           {order.id}
                           <div className="text-[10px] text-slate-400 font-normal">
                             {formatDate(order.created_at)}
                           </div>
                         </td>
 
-                        <td className="py-3 px-2 font-medium text-ink">
+                        <td className="py-3 px-2 font-medium text-foreground">
                           {order.customer_name}
                           <div className="text-[10px] text-slate-400">{order.customer_phone}</div>
                         </td>
 
                         <td className="py-3 px-2">
-                          <div className="font-medium text-ink">{order.items[0]?.service_name}</div>
+                          <div className="font-medium text-foreground">{order.items[0]?.service_name}</div>
                           <div className="text-[10px] text-slate-500">
-                            {order.measured_weight_kg ? `${order.measured_weight_kg} kg (Scale)` : `${order.items[0]?.weight} kg (Est)`}
+                            {order.measured_weight_kg ? `${order.measured_weight_kg} kg (Scale)` : `${order.items[0]?.weight ?? '—'} kg (Est)`}
                           </div>
                         </td>
 
-                        <td className="py-3 px-2 font-bold font-mono text-ink">
+                        <td className="py-3 px-2 font-bold font-mono text-foreground">
                           {formatCurrency(order.total_amount)}
                           <div className="text-[10px] uppercase font-semibold text-mint-dark">
                             {order.payment_method}
                           </div>
-                        </td>
-
-                        <td className="py-3 px-2 font-mono font-bold text-coral">
-                          {order.delivery_pin}
                         </td>
 
                         <td className="py-3 px-2">
@@ -364,11 +399,11 @@ export const AdminDashboardPage: React.FC = () => {
                         </td>
 
                         <td className="py-3 px-2 text-right space-x-1.5">
-                          {order.status === 'ORDER_PLACED' && (
+                          {['ORDER_PLACED', 'CONFIRMED'].includes(order.status) && (
                             <Button
                               variant="mint"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'PICKUP_ASSIGNED')}
+                              onClick={() => handleQuickStatusChange(order, 'PICKUP_ASSIGNED')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Dispatch Pickup
@@ -379,7 +414,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <Button
                               variant="mint"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'RECEIVED_AT_FACILITY')}
+                              onClick={() => handleQuickStatusChange(order, 'RECEIVED_AT_FACILITY')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Intake Hub
@@ -390,7 +425,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <Button
                               variant="mint"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'WASHING')}
+                              onClick={() => handleQuickStatusChange(order, 'WASHING')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Start Wash
@@ -401,7 +436,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <Button
                               variant="mint"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'READY_FOR_DELIVERY')}
+                              onClick={() => handleQuickStatusChange(order, 'READY_FOR_DELIVERY')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Mark Ready
@@ -412,7 +447,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <Button
                               variant="coral"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'OUT_FOR_DELIVERY')}
+                              onClick={() => handleQuickStatusChange(order, 'OUT_FOR_DELIVERY')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Dispatch Rider
@@ -423,7 +458,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <Button
                               variant="mint"
                               size="sm"
-                              onClick={() => handleQuickStatusChange(order.id, 'DELIVERED')}
+                              onClick={() => handleQuickStatusChange(order, 'DELIVERED')}
                               className="text-[11px] h-7 px-2.5"
                             >
                               Mark Delivered
@@ -432,7 +467,7 @@ export const AdminDashboardPage: React.FC = () => {
 
                           {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
                             <button
-                              onClick={() => handleQuickStatusChange(order.id, 'CANCELLED')}
+                              onClick={() => handleCancelOrder(order.id)}
                               className="text-[11px] text-red-600 hover:underline px-1.5"
                             >
                               Cancel
@@ -454,13 +489,16 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Revenue Trend Line Chart */}
-            <Card className="lg:col-span-8 p-6 border-ink/5 bg-white space-y-4">
+            <Card className="lg:col-span-8 p-6 border-slate-200/70 bg-surface space-y-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-bold text-base font-display text-ink">7-Day Revenue &amp; Volume Trajectory</h3>
+                  <h3 className="font-bold text-base font-display text-foreground">7-Day Revenue &amp; Volume Trajectory</h3>
                   <p className="text-xs text-slate-400">Daily gross booking value in INR</p>
                 </div>
-                <Badge variant="mint">+24% vs Last Week</Badge>
+                {/* Charts below render static sample series — no historical
+                    aggregation query exists yet. Label them so admins don't read
+                    the numbers as live. */}
+                <Badge variant="amber">Sample data</Badge>
               </div>
 
               <div className="h-64 w-full pt-4">
@@ -486,10 +524,13 @@ export const AdminDashboardPage: React.FC = () => {
             </Card>
 
             {/* Service Category Pie Chart */}
-            <Card className="lg:col-span-4 p-6 border-ink/5 bg-white space-y-4">
-              <div>
-                <h3 className="font-bold text-base font-display text-ink">Service Category Share</h3>
-                <p className="text-xs text-slate-400">Volume proportion by wash cycle</p>
+            <Card className="lg:col-span-4 p-6 border-slate-200/70 bg-surface space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-bold text-base font-display text-foreground">Service Category Share</h3>
+                  <p className="text-xs text-slate-400">Volume proportion by wash cycle</p>
+                </div>
+                <Badge variant="amber">Sample data</Badge>
               </div>
 
               <div className="h-56 w-full flex items-center justify-center">
@@ -528,9 +569,9 @@ export const AdminDashboardPage: React.FC = () => {
       {activeAdminTab === 'pricing' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Service Price Configuration */}
-          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-ink/5 shadow-card space-y-6">
+          <div className="lg:col-span-7 bg-surface p-6 sm:p-8 rounded-3xl border border-slate-200/70 shadow-card space-y-6">
             <div>
-              <h3 className="text-lg font-bold font-display text-ink">Service Catalog &amp; Base Price Tiers</h3>
+              <h3 className="text-lg font-bold font-display text-foreground">Service Catalog &amp; Base Price Tiers</h3>
               <p className="text-xs text-slate-500">Update rates in real-time without redeploying code.</p>
             </div>
 
@@ -541,7 +582,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className="p-4 rounded-2xl border border-slate-200 flex items-center justify-between"
                 >
                   <div className="space-y-0.5">
-                    <div className="font-bold text-sm text-ink">{srv.name}</div>
+                    <div className="font-bold text-sm text-foreground">{srv.name}</div>
                     <div className="text-xs text-slate-400">
                       SLA: {srv.turnaround_hours}h • Express Fee: {formatCurrency(srv.express_surcharge)}
                     </div>
@@ -572,9 +613,9 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
 
           {/* Service Areas Toggle */}
-          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-ink/5 shadow-card space-y-6">
+          <div className="lg:col-span-5 bg-surface p-6 sm:p-8 rounded-3xl border border-slate-200/70 shadow-card space-y-6">
             <div>
-              <h3 className="text-lg font-bold font-display text-ink">Active Postal Code Zones</h3>
+              <h3 className="text-lg font-bold font-display text-foreground">Active Postal Code Zones</h3>
               <p className="text-xs text-slate-500">Toggle serviceable pin codes on the fly.</p>
             </div>
 
@@ -582,7 +623,7 @@ export const AdminDashboardPage: React.FC = () => {
               {serviceAreas.map((area) => (
                 <div key={area.pincode} className="py-3 flex items-center justify-between">
                   <div>
-                    <div className="font-bold font-mono text-sm text-ink">{area.pincode}</div>
+                    <div className="font-bold font-mono text-sm text-foreground">{area.pincode}</div>
                     <div className="text-slate-500">{area.area_name}, {area.city}</div>
                   </div>
 
@@ -615,8 +656,8 @@ export const AdminDashboardPage: React.FC = () => {
       {/* TAB 4: SUPPORT TICKETS RESOLUTION */}
       {activeAdminTab === 'tickets' && (
         <div className="space-y-6">
-          <Card className="p-6 border-ink/5 bg-white shadow-card space-y-4">
-            <h3 className="text-lg font-bold font-display text-ink">Customer Escalation Queue</h3>
+          <Card className="p-6 border-slate-200/70 bg-surface shadow-card space-y-4">
+            <h3 className="text-lg font-bold font-display text-foreground">Customer Escalation Queue</h3>
 
             <div className="space-y-3">
               {tickets.map((t) => (
@@ -632,7 +673,7 @@ export const AdminDashboardPage: React.FC = () => {
                       </Badge>
                       {t.order_id && <Badge variant="slate" size="sm">Order #{t.order_id}</Badge>}
                     </div>
-                    <h4 className="font-bold text-sm text-ink">{t.subject}</h4>
+                    <h4 className="font-bold text-sm text-foreground">{t.subject}</h4>
                     <p className="text-xs text-slate-500">{t.message}</p>
                     {t.resolution && (
                       <div className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded-lg mt-1">
@@ -676,7 +717,7 @@ export const AdminDashboardPage: React.FC = () => {
                 min={1}
                 value={newPrice}
                 onChange={(e) => setNewPrice(parseInt(e.target.value) || 0)}
-                className="w-full h-11 px-3 rounded-xl border border-ink/15 text-lg font-mono font-bold outline-none focus:border-mint"
+                className="w-full h-11 px-3 rounded-xl border border-slate-300/80 text-lg font-mono font-bold outline-none focus:border-mint"
                 required
               />
             </div>
@@ -715,7 +756,7 @@ export const AdminDashboardPage: React.FC = () => {
                 value={resolutionNote}
                 onChange={(e) => setResolutionNote(e.target.value)}
                 placeholder="e.g. Garment was checked by Facility Lead and delicate bath initiated with citrus detergent..."
-                className="w-full rounded-xl border border-ink/15 p-3 text-xs outline-none focus:border-mint"
+                className="w-full rounded-xl border border-slate-300/80 p-3 text-xs outline-none focus:border-mint"
                 required
               />
             </div>

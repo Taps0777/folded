@@ -1,0 +1,72 @@
+{
+  "nav": {
+    "sessionActive": "Session Active",
+    "createAccount": "Create your Account",
+    "welcome": "Welcome to FoldeD",
+    "goToPortal": "Go to My Portal",
+    "signOut": "Sign Out",
+    "anotherAccount": "Log in with another account",
+    "demoLogins": "1-Click Demo Logins",
+    "liveDB": "Live DB Accounts"
+  },
+  "home": {
+    "signedIn": "Signed in as {{email}} ({{role}})",
+    "signupDesc": "Sign up to track laundry bookings and schedule pickups",
+    "loginDesc": "Log in to manage pickups, track orders, or access operations",
+    "alreadySignedIn": "You are already signed in!",
+    "loggedInAs": "Logged in as {{name}} with role {{role}}",
+    "keepSession": "Keep session",
+    "activeSession": "Active session: {{email}}",
+    "quickFill": "Quick Fill Demo Credentials",
+    "demoSelect": "Select a role preset to autofill the email, then sign in with the account password:",
+    "demoNote": "These are role-preset addresses for quick testing. Sign in with the password for each account."
+  },
+  "form": {
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "e.g. Rahul Verma",
+    "phone": "Phone Number",
+    "phonePlaceholder": "+91 98765 43210",
+    "email": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "password": "Password",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "passwordHint": "Use the password you set for your account.",
+    "createAccount": "Create Account & Sign In",
+    "signIn": "Sign In",
+    "authenticating": "Authenticating...",
+    "haveAccount": "Already have an account? Sign in",
+    "noAccount": "Don't have an account? Create one"
+  },
+  "auth": {
+    "title": "Authentication Notice",
+    "invalidCredentials": "Invalid email or password.",
+    "emailNotConfirmed": "Email verification required by your server settings. You can use the verified demo accounts on the right.",
+    "authFailed": "Authentication failed. Please check your credentials."
+  },
+  "toast": {
+    "registerSuccess": "Account registered and signed in!",
+    "loginSuccess": "Signed in successfully!",
+    "loginFailed": "Login failed",
+    "signoutSuccess": "Signed out successfully",
+    "signoutError": "Error signing out",
+    "demoEmailFilled": "Demo email autofilled. Enter your password to continue."
+  },
+  "loading": {
+    "pleaseWait": "Please wait..."
+  },
+  "demoAccounts": {
+    "admin": "Admin (Priya Sharma)",
+    "customer": "Customer (Rajesh Kumar)",
+    "pickup": "Pickup Specialist (Amit Patel)",
+    "laundry": "Laundry Lead (Sunita Rao)",
+    "delivery": "Delivery Runner (Vikram Singh)"
+  },
+  "demoRoles": {
+    "admin": "Admin Ops",
+    "customer": "Customer",
+    "pickup": "Field Agent",
+    "laundry": "Facility Lead",
+    "delivery": "Dispatch"
+  }
+}

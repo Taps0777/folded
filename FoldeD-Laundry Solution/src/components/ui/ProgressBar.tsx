@@ -41,7 +41,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ status, className, sho
                 isCancelled ? 'bg-red-500' : isHold ? 'bg-amber-500' : 'bg-mint'
               )}
             />
-            <span className="font-display font-bold text-base text-ink">{statusInfo.label}</span>
+            <span className="font-display font-bold text-base text-foreground">{statusInfo.label}</span>
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
             {isCancelled ? 'Cancelled' : isHold ? 'Action Required' : `${percent}% Completed`}
@@ -78,9 +78,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ status, className, sho
                   className={cn(
                     'w-7 h-7 rounded-full flex items-center justify-center text-xs transition-colors mb-1.5',
                     isDone
-                      ? 'bg-mint text-white'
+                      ? 'bg-mint text-ink'
                       : isCurrent
-                      ? 'bg-mint-soft text-mint-dark ring-2 ring-mint ring-offset-2 font-bold animate-pulse'
+                      ? 'bg-mint-soft text-mint-dark ring-2 ring-mint ring-offset-2 ring-offset-background font-bold animate-pulse'
                       : 'bg-slate-100 text-slate-400'
                   )}
                 >
@@ -89,7 +89,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ status, className, sho
                 <span
                   className={cn(
                     'text-[10px] sm:text-xs leading-tight',
-                    isDone || isCurrent ? 'font-semibold text-ink' : 'text-slate-400'
+                    isDone || isCurrent ? 'font-semibold text-foreground' : 'text-slate-400'
                   )}
                 >
                   {step.label}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { StorageService } from '../../services/storage';
 import { useApp } from '../../hooks/useApp';
 import { formatCurrency, formatDateTime, formatTime } from '../../utils/formatters';
 import { ORDER_STATUS_DETAILS } from '../../lib/constants';
@@ -36,8 +35,9 @@ import {
 export const OrderTrackingPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const { showToast } = useApp();
-  const [order, setOrder] = useState<any>(() => (orderId ? StorageService.getOrderById(orderId) : null));
-  const [isLoading, setIsLoading] = useState(!order);
+  const [order, setOrder] = useState<any>(null);
+  const [pin, setPin] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Interactive GPS Radar Simulation State
   const [riderProgress, setRiderProgress] = useState(0.45); // 0 (Hub) to 1 (Doorstep)
@@ -51,20 +51,34 @@ export const OrderTrackingPage: React.FC = () => {
       setIsLoading(false);
       return;
     }
-    import('../../services/api/orderService').then(({ orderService }) => {
-      orderService.getOrderById(orderId)
-        .then((fetched) => {
-          if (fetched) {
-            setOrder(fetched);
+
+    // The chunk import itself can reject (offline / stale deploy). The old code
+    // only chained .catch onto the inner call, so an import failure left the
+    // page spinning forever and logged an unhandled rejection.
+    let active = true;
+    (async () => {
+      try {
+        const { orderService } = await import('../../services/api/orderService');
+        const fetched = await orderService.getOrderById(orderId);
+        if (active && fetched) {
+          setOrder(fetched);
+          try {
+            const deliveryPin = await orderService.getDeliveryPin(orderId);
+            if (active && deliveryPin) setPin(deliveryPin);
+          } catch {
+            // PIN is only surfaced when the viewer is the order owner.
           }
-        })
-        .catch((err) => {
-          console.error('Error loading order tracking:', err);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    });
+        }
+      } catch (err) {
+        console.error('Error loading order tracking:', err);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [orderId]);
 
   const statusInfo = (ORDER_STATUS_DETAILS as any)[order?.status] || {
@@ -90,6 +104,13 @@ export const OrderTrackingPage: React.FC = () => {
 
   const currentWaypoint = waypoints.reduce((prev, curr) =>
     riderProgress >= curr.progress ? curr : prev
+  );
+  // Index of the last waypoint the rider has reached. (A dedicated index is
+  // needed because `findIndex(w => riderProgress >= w.progress)` always returns
+  // 0 — waypoints[0].progress is 0 — so the "current" marker never advanced.)
+  const currentWaypointIndex = waypoints.reduce(
+    (prevIdx, wp, idx) => (riderProgress >= wp.progress ? idx : prevIdx),
+    0
   );
 
   const handleSimulateStep = () => {
@@ -159,7 +180,7 @@ export const OrderTrackingPage: React.FC = () => {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-ink dark:border-cream border-t-transparent animate-spin" />
         </div>
       </div>
     );
@@ -185,10 +206,11 @@ export const OrderTrackingPage: React.FC = () => {
   }
 
   const isDeliveryPhase = order.status.includes('DELIVERY') || order.status === 'OUT_FOR_DELIVERY' || order.status === 'READY_FOR_DELIVERY';
-  const riderName = isDeliveryPhase 
-    ? order.delivery_staff_name || 'Amit Kumar (Courier #08)'
-    : order.pickup_staff_name || 'Vikram Singh (Rider #14)';
-  const riderInitial = isDeliveryPhase ? 'A' : 'V';
+  // No fake names: show the actually-assigned agent, or say none is assigned.
+  const riderName = isDeliveryPhase
+    ? order.delivery_staff_name || 'Courier not yet assigned'
+    : order.pickup_staff_name || 'Rider not yet assigned';
+  const riderInitial = riderName.charAt(0).toUpperCase() || '?';
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
@@ -217,14 +239,14 @@ export const OrderTrackingPage: React.FC = () => {
               Doorstep Handover PIN
             </span>
             <span className="text-xl font-bold font-mono text-slate-900 tracking-widest leading-none">
-              {order.delivery_pin}
+              {pin || '••••'}
             </span>
           </div>
         </div>
       </div>
 
       {/* Hero Tracking Card */}
-      <Card className="p-6 sm:p-8 border-slate-200/80 bg-white shadow-xl space-y-6">
+      <Card className="p-6 sm:p-8 border-slate-200/80 bg-surface shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Order Status</span>
@@ -242,13 +264,17 @@ export const OrderTrackingPage: React.FC = () => {
         <ProgressBar status={order.status} showDetails={false} />
 
         {/* INTERACTIVE ANIMATED GPS ROUTE RADAR */}
-        <div className="p-6 rounded-3xl bg-slate-900 text-white shadow-2xl relative overflow-hidden space-y-5">
+        <div className="p-6 rounded-3xl bg-ink text-cream shadow-2xl relative overflow-hidden space-y-5">
           {/* Radar Top Info */}
           <div className="flex flex-wrap items-center justify-between gap-3 relative z-10">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Navigation className="w-3.5 h-3.5" /> Live Radar GPS Telemetry
+              </span>
+              {/* This radar is a UI demo — no live rider GPS is wired up yet. */}
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                Simulated
               </span>
             </div>
 
@@ -264,14 +290,14 @@ export const OrderTrackingPage: React.FC = () => {
               </Button>
               <button
                 onClick={handleShareLink}
-                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-cream/70 transition-colors"
                 title="Share Tracking Link"
               >
                 <Share2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setChatOpen(!chatOpen)}
-                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-cream/70 transition-colors"
                 title={chatOpen ? 'Close Chat' : 'Chat with Rider'}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -280,7 +306,7 @@ export const OrderTrackingPage: React.FC = () => {
           </div>
 
           {/* SVG Animated Radar Canvas */}
-          <div className="relative w-full h-56 bg-slate-950/60 rounded-2xl border border-white/10 p-2 overflow-hidden flex items-center justify-center">
+          <div className="relative w-full h-56 bg-black/40 rounded-2xl border border-white/10 p-2 overflow-hidden flex items-center justify-center">
             {/* Background Grid Pattern */}
             <div
               className="absolute inset-0 opacity-15"
@@ -348,7 +374,7 @@ export const OrderTrackingPage: React.FC = () => {
             </svg>
 
             {/* Current Landmark Overlay HUD */}
-            <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[11px] flex items-center gap-2">
+            <div className="absolute bottom-3 left-3 bg-ink/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[11px] flex items-center gap-2">
               <Navigation className="w-3 h-3 text-emerald-400" />
               <span>Current Sector: <strong>{currentWaypoint.label}</strong></span>
             </div>
@@ -357,7 +383,7 @@ export const OrderTrackingPage: React.FC = () => {
           {/* Telemetry Metrics HUD Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
             <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] uppercase font-bold text-cream/60 flex items-center gap-1">
                 <MapPin className="w-3 h-3" /> Distance Away
               </span>
               <div className="text-base font-bold font-mono text-emerald-400">
@@ -366,7 +392,7 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
 
             <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] uppercase font-bold text-cream/60 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-blue-400" /> Live ETA
               </span>
               <div className="text-base font-bold font-mono text-white">
@@ -375,7 +401,7 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
 
             <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] uppercase font-bold text-cream/60 flex items-center gap-1">
                 <Gauge className="w-3 h-3 text-blue-400" /> Speed
               </span>
               <div className="text-base font-bold font-mono text-white">
@@ -384,7 +410,7 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
 
             <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] uppercase font-bold text-cream/60 flex items-center gap-1">
                 <BatteryCharging className="w-3 h-3 text-emerald-400" /> Vehicle Status
               </span>
               <div className="text-base font-bold font-mono text-emerald-400">
@@ -397,18 +423,27 @@ export const OrderTrackingPage: React.FC = () => {
           <div className="pt-2 space-y-2 border-t border-white/10">
             {waypoints.map((wp, idx) => {
               const isPassed = riderProgress >= wp.progress;
-              const isCurrent = idx === waypoints.findIndex(w => riderProgress >= w.progress);
+              const isCurrent = idx === currentWaypointIndex;
+              // Progress within the segment from the previous waypoint. Guard the
+              // denominator so a zero-length segment can't yield NaN/Infinity.
+              const prevProgress = waypoints[idx - 1]?.progress ?? 0;
+              const segmentSpan = wp.progress - prevProgress;
+              const segmentPercent = isPassed
+                ? '100%'
+                : isCurrent && segmentSpan > 0
+                ? `${Math.min(100, Math.max(0, Math.round(((riderProgress - prevProgress) / segmentSpan) * 100)))}%`
+                : '0%';
               return (
                 <div key={wp.label} className="flex items-center gap-3 text-xs">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${isPassed ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-emerald-500/30 text-emerald-400 animate-pulse' : 'bg-white/10 text-white/50'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${isPassed ? 'bg-emerald-500 text-ink' : isCurrent ? 'bg-emerald-500/30 text-emerald-400 animate-pulse' : 'bg-white/10 text-cream/50'}`}>
                     {wp.icon}
                   </div>
                   <div className="flex-1">
-                    <div className={isCurrent ? 'font-medium text-white' : isPassed ? 'text-slate-300' : 'text-slate-500'}>
+                    <div className={isCurrent ? 'font-medium text-white' : isPassed ? 'text-cream/70' : 'text-cream/50'}>
                       {wp.label}
                     </div>
                     <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div className={`h-full transition-all duration-500 ${isPassed ? 'bg-emerald-500' : isCurrent ? 'bg-emerald-500/50' : 'bg-white/10'}`} style={{ width: isPassed ? '100%' : isCurrent ? `${Math.round((riderProgress - (waypoints[idx-1]?.progress || 0)) / (wp.progress - (waypoints[idx-1]?.progress || 0)) * 100)}%` : '0%' }} />
+                      <div className={`h-full transition-all duration-500 ${isPassed ? 'bg-emerald-500' : isCurrent ? 'bg-emerald-500/50' : 'bg-white/10'}`} style={{ width: segmentPercent }} />
                     </div>
                   </div>
                   {isCurrent && <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />}
@@ -425,7 +460,7 @@ export const OrderTrackingPage: React.FC = () => {
               </div>
               <div>
                 <div className="font-bold text-white">{riderName}</div>
-                <div className="text-slate-400 text-[11px] flex items-center gap-1">
+                <div className="text-cream/60 text-[11px] flex items-center gap-1">
                   <Wifi className="w-3 h-3" /> Online • <MapPin className="w-3 h-3" /> {remainingDist} km away
                 </div>
               </div>
@@ -456,20 +491,20 @@ export const OrderTrackingPage: React.FC = () => {
 
         {/* Chat Panel */}
         {chatOpen && (
-          <div className="fixed bottom-4 right-4 z-50 w-full sm:w-80 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-2">
-            <div className="p-3 bg-slate-900 text-white rounded-t-2xl flex items-center justify-between">
+          <div className="fixed bottom-4 right-4 z-50 w-full sm:w-80 bg-surface rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-slide-up">
+            <div className="p-3 bg-ink text-cream rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-sm">
                   {riderInitial}
                 </div>
                 <div>
                   <div className="font-semibold text-xs">{riderName}</div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <div className="text-[10px] text-cream/60 flex items-center gap-1">
                     <Wifi className="w-2.5 h-2.5" /> Online
                   </div>
                 </div>
               </div>
-              <button onClick={() => setChatOpen(false)} className="p-1 text-slate-400 hover:text-white">
+              <button onClick={() => setChatOpen(false)} className="p-1 text-cream/60 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -482,7 +517,7 @@ export const OrderTrackingPage: React.FC = () => {
               ) : (
                 chatMessages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs ${msg.sender === 'user' ? 'bg-slate-900 text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
+                    <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs ${msg.sender === 'user' ? 'bg-ink text-cream dark:bg-cream dark:text-ink rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
                       <p>{msg.text}</p>
                       <span className={`text-[9px] ${msg.sender === 'user' ? 'text-slate-400' : 'text-slate-500'} block mt-1 text-right`}>
                         {msg.time}
@@ -515,7 +550,7 @@ export const OrderTrackingPage: React.FC = () => {
       {/* Grid: Audit Timeline & Order Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Timeline Log */}
-        <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+        <div className="lg:col-span-7 bg-surface p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
           <h3 className="text-lg font-bold font-display text-slate-900 pb-3 border-b border-slate-200/70">
             Audit Activity Timeline
           </h3>
@@ -526,7 +561,7 @@ export const OrderTrackingPage: React.FC = () => {
               return (
                 <div key={hist.id} className="relative flex items-start gap-4 pl-8">
                   <div
-                    className={`absolute left-1.5 top-1 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center ${
+                    className={`absolute left-1.5 top-1 w-4 h-4 rounded-full border-2 bg-surface flex items-center justify-center ${
                       isLatest ? 'border-emerald-500 bg-emerald-500 ring-4 ring-emerald-500/20' : 'border-slate-300'
                     }`}
                   >
@@ -550,7 +585,7 @@ export const OrderTrackingPage: React.FC = () => {
 
         {/* Order Details & Summary */}
         <div className="lg:col-span-5 space-y-5">
-          <Card className="p-6 border-slate-200/80 bg-white shadow-sm space-y-4">
+          <Card className="p-6 border-slate-200/80 bg-surface shadow-sm space-y-4">
             <h4 className="text-base font-bold font-display text-slate-900 pb-3 border-b border-slate-200/70">
               Garment Package Details
             </h4>
@@ -567,7 +602,7 @@ export const OrderTrackingPage: React.FC = () => {
               <div className="flex justify-between">
                 <span>Measured Scale Weight:</span>
                 <strong className="text-slate-900">
-                  {order.measured_weight_kg ? `${order.measured_weight_kg} kg` : `${order.items[0]?.weight} kg (Est.)`}
+                  {order.measured_weight_kg ? `${order.measured_weight_kg} kg` : `${order.items[0]?.weight ?? '—'} kg (Est.)`}
                 </strong>
               </div>
               <div className="flex justify-between">
@@ -651,7 +686,9 @@ export const OrderTrackingPage: React.FC = () => {
           <div>
             <div className="text-base font-bold font-display text-slate-900">{riderName}</div>
             <div className="text-slate-400 mt-0.5">Assigned Logistics Partner (EV-Fleet)</div>
-            <div className="font-mono font-bold text-lg text-slate-900 mt-2">+91 98765 43210</div>
+            <div className="font-mono font-medium text-sm text-slate-500 mt-2">
+              Number shared once an agent is assigned
+            </div>
           </div>
           <p className="text-slate-500 text-[11px] max-w-xs mx-auto">
             Doorstep note: Courier is carrying the electronic weigh scale and pre-printed garment tags.

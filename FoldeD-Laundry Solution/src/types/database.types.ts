@@ -79,6 +79,42 @@ export type Database = {
           },
         ]
       }
+      alteration_services: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: number
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          unit?: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           active: boolean | null
@@ -196,6 +232,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          loyalty_account_id: string | null
           order_id: string | null
           points: number
           type: string
@@ -205,6 +242,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          loyalty_account_id?: string | null
           order_id?: string | null
           points: number
           type: string
@@ -214,12 +252,20 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          loyalty_account_id?: string | null
           order_id?: string | null
           points?: number
           type?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_loyalty_account_id_fkey"
+            columns: ["loyalty_account_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_accounts"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "loyalty_transactions_order_id_fkey"
             columns: ["order_id"]
@@ -242,6 +288,7 @@ export type Database = {
           item_id: string | null
           order_id: string | null
           quantity: number
+          service_id: string | null
           total_price: number
           unit_price: number
         }
@@ -250,6 +297,7 @@ export type Database = {
           item_id?: string | null
           order_id?: string | null
           quantity: number
+          service_id?: string | null
           total_price: number
           unit_price: number
         }
@@ -258,6 +306,7 @@ export type Database = {
           item_id?: string | null
           order_id?: string | null
           quantity?: number
+          service_id?: string | null
           total_price?: number
           unit_price?: number
         }
@@ -274,6 +323,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -471,36 +527,49 @@ export type Database = {
           amount: number
           created_at: string | null
           currency: string | null
+          customer_id: string | null
           gateway: string | null
           gateway_transaction_id: string | null
           id: string
           order_id: string | null
           status: Database["public"]["Enums"]["payment_status"]
+          transaction_id: string | null
           updated_at: string | null
         }
         Insert: {
           amount: number
           created_at?: string | null
           currency?: string | null
+          customer_id?: string | null
           gateway?: string | null
           gateway_transaction_id?: string | null
           id?: string
           order_id?: string | null
           status: Database["public"]["Enums"]["payment_status"]
+          transaction_id?: string | null
           updated_at?: string | null
         }
         Update: {
           amount?: number
           created_at?: string | null
           currency?: string | null
+          customer_id?: string | null
           gateway?: string | null
           gateway_transaction_id?: string | null
           id?: string
           order_id?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
+          transaction_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_order_id_fkey"
             columns: ["order_id"]
@@ -618,42 +687,6 @@ export type Database = {
         }
         Relationships: []
       }
-      alteration_services: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          price: number
-          unit: string
-          category: string | null
-          active: boolean | null
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          price: number
-          unit: string
-          category?: string | null
-          active?: boolean | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          price?: number
-          unit?: string
-          category?: string | null
-          active?: boolean | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       services: {
         Row: {
           active: boolean | null
@@ -664,6 +697,7 @@ export type Database = {
           express_surcharge: number | null
           id: string
           maximum_quantity: number | null
+          minimum_quantity: number | null
           name: string
           price_per_kg: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -678,6 +712,7 @@ export type Database = {
           express_surcharge?: number | null
           id?: string
           maximum_quantity?: number | null
+          minimum_quantity?: number | null
           name: string
           price_per_kg?: number | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
@@ -692,6 +727,7 @@ export type Database = {
           express_surcharge?: number | null
           id?: string
           maximum_quantity?: number | null
+          minimum_quantity?: number | null
           name?: string
           price_per_kg?: number | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
@@ -839,31 +875,113 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_override_status: {
+        Args: {
+          p_new_status: Database["public"]["Enums"]["order_status"]
+          p_order_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      advance_laundry_stage: {
+        Args: { p_order_id: string; p_stage: string }
+        Returns: Json
+      }
+      assign_delivery_agent: {
+        Args: { p_agent_id: string; p_order_id: string }
+        Returns: Json
+      }
+      assign_pickup_agent: {
+        Args: { p_agent_id: string; p_order_id: string }
+        Returns: Json
+      }
+      cancel_order: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
+      confirm_refund: {
+        Args: {
+          p_amount: number
+          p_failure_reason?: string
+          p_order_id: string
+          p_razorpay_payment_id: string
+          p_razorpay_refund_id: string
+          p_status: string
+        }
+        Returns: string
+      }
       create_order_secure: {
         Args: {
           p_address_id: string
-          p_coupon_code: string
+          p_coupon_code?: string
           p_customer_id: string
           p_is_express: boolean
+          p_items?: Json
+          p_loyalty_points?: number
           p_pickup_date: string
           p_pickup_slot: string
           p_service_id: string
-          p_special_instructions: string
-          p_weight_kg: number
+          p_special_instructions?: string
+          p_weight_kg?: number
         }
         Returns: Json
       }
-      validate_coupon: {
-        Args: {
-          p_code: string
-          p_subtotal: number
-        }
-        Returns: Json
-      }
+      earn_loyalty_points: { Args: { p_order_id: string }; Returns: undefined }
       get_auth_user_role: { Args: never; Returns: string }
-      process_payment_webhook: {
-        Args: { p_amount: number; p_order_id: string; p_transaction_id: string }
+      get_delivery_pin: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
+      get_order_payment_status: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
+      get_payable_order: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
+      initiate_refund: { Args: { p_order_id: string }; Returns: undefined }
+      process_payment_failed: {
+        Args: { p_order_id: string; p_razorpay_payment_id: string }
         Returns: string
+      }
+      process_payment_webhook: {
+        Args: {
+          p_amount: number
+          p_currency?: string
+          p_order_id: string
+          p_razorpay_order_id: string
+          p_razorpay_payment_id: string
+        }
+        Returns: string
+      }
+      record_pickup: {
+        Args: {
+          p_bag_id: string
+          p_measured_weight_kg: number
+          p_order_id: string
+        }
+        Returns: Json
+      }
+      request_refund: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
+      save_razorpay_order: {
+        Args: {
+          p_amount: number
+          p_order_id: string
+          p_razorpay_order_id: string
+        }
+        Returns: Json
+      }
+      submit_quality_check: {
+        Args: {
+          p_order_id: string
+          p_passed: boolean
+          p_quality_check: Json
+        }
+        Returns: Json
       }
       update_order_status: {
         Args: {
@@ -872,7 +990,15 @@ export type Database = {
           p_quality_check?: Json
           p_reason?: string
         }
-        Returns: undefined
+        Returns: Json
+      }
+      validate_coupon: {
+        Args: { p_code: string; p_subtotal: number }
+        Returns: Json
+      }
+      verify_delivery_pin: {
+        Args: { p_order_id: string; p_pin: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -899,10 +1025,17 @@ export type Database = {
         | "DELIVERY_FAILED"
         | "REFUND_PENDING"
         | "REFUNDED"
+        | "ORDER_PLACED"
+        | "PICKUP_STARTED"
+        | "SORTING"
+        | "IRONING_FOLDING"
+        | "ON_HOLD"
       payment_status:
         | "PENDING"
         | "SUCCESS"
         | "FAILED"
+        | "REFUND_PENDING"
+        | "REFUND_FAILED"
         | "REFUNDED"
         | "PARTIALLY_REFUNDED"
       pricing_type: "PER_KG" | "PER_ITEM" | "FIXED"
@@ -1067,6 +1200,11 @@ export const Constants = {
         "DELIVERY_FAILED",
         "REFUND_PENDING",
         "REFUNDED",
+        "ORDER_PLACED",
+        "PICKUP_STARTED",
+        "SORTING",
+        "IRONING_FOLDING",
+        "ON_HOLD",
       ],
       payment_status: [
         "PENDING",

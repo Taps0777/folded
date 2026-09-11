@@ -47,7 +47,15 @@ export type ServiceCategory =
   | 'spa';
 
 export type PricingType = 'per_kg' | 'per_item';
-export type PaymentStatus = 'PENDING' | 'AUTHORIZED' | 'PAID' | 'FAILED' | 'REFUNDED';
+export type PaymentStatus =
+  | 'PENDING'
+  | 'AUTHORIZED'
+  | 'PAID'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'REFUND_PENDING'
+  | 'REFUND_FAILED'
+  | 'REFUNDED';
 export type PaymentMethod = 'razorpay' | 'upi' | 'card' | 'cod' | 'wallet';
 
 export interface Profile {
@@ -109,6 +117,7 @@ export interface OrderStatusHistoryItem {
 
 export interface Order {
   id: string;
+  order_number?: string;
   user_id: string;
   customer_name: string;
   customer_phone: string;
@@ -128,7 +137,7 @@ export interface Order {
   pickup_slot_date: string;
   pickup_slot_time: string;
   estimated_delivery: string;
-  delivery_pin: string;
+  delivery_pin?: string;
   notes?: string;
   bag_id?: string;
   measured_weight_kg?: number;
@@ -143,6 +152,36 @@ export interface Order {
   created_at: string;
   updated_at: string;
   history: OrderStatusHistoryItem[];
+}
+
+export interface CreateOrderResult {
+  ok?: boolean;
+  id: string;
+  order_number?: string;
+  total: number;
+  delivery_pin?: string;
+  message?: string;
+}
+
+export interface VerifyPinResult {
+  ok: boolean;
+  message?: string;
+}
+
+export interface PaymentStatusResult {
+  ok: boolean;
+  payment_status?: PaymentStatus;
+  status?: OrderStatus;
+  razorpay_order_id?: string;
+  message?: string;
+}
+
+export interface RefundRequestResult {
+  ok: boolean;
+  refund_id?: string;
+  razorpay_payment_id?: string;
+  amount?: number;
+  message?: string;
 }
 
 export interface AlterationService {

@@ -1,0 +1,23 @@
+# Supabase project configuration for FoldeD.
+# Docs: https://supabase.com/docs/guides/local-development/config
+project_id = "folded"
+
+[functions.create-razorpay-order]
+verify_jwt = true
+
+[functions.create-razorpay-order.secrets]
+RAZORPAY_KEY_ID = "rzp_live_xxx"
+RAZORPAY_KEY_SECRET = "secret"
+
+[functions.razorpay-webhook]
+verify_jwt = false
+
+[functions.razorpay-webhook.secrets]
+RAZORPAY_WEBHOOK_SECRET = "webhook-secret"
+
+[functions.razorpay-refund]
+verify_jwt = true
+
+[functions.razorpay-refund.secrets]
+RAZORPAY_KEY_ID = "rzp_live_xxx"
+RAZORPAY_KEY_SECRET = "secret"

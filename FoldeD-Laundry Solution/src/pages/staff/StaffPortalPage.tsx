@@ -39,9 +39,9 @@ export const StaffPortalPage: React.FC = () => {
   const allowedTabs: StaffTab[] =
     staffRole === 'pickup_staff' || staffRole === 'laundry_staff' || staffRole === 'delivery_staff'
       ? ROLE_TABS[staffRole]
-      : ['pickup', 'facility', 'delivery']; // fallback (e.g. admin demo persona)
+      : [];
 
-  const [activeStaffTab, setActiveStaffTab] = useState<StaffTab>(allowedTabs[0]);
+  const [activeStaffTab, setActiveStaffTab] = useState<StaffTab>(allowedTabs[0] ?? 'pickup');
 
   // Pickup Handover Modal State
   const [pickupModalOrder, setPickupModalOrder] = useState<Order | null>(null);
@@ -90,7 +90,7 @@ export const StaffPortalPage: React.FC = () => {
   // tab to the first tab this role is allowed to view.
   React.useEffect(() => {
     if (!allowedTabs.includes(activeStaffTab)) {
-      setActiveStaffTab(allowedTabs[0]);
+      setActiveStaffTab(allowedTabs[0] ?? 'pickup');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffRole]);
@@ -134,13 +134,12 @@ export const StaffPortalPage: React.FC = () => {
 
     try {
       const { orderService } = await import('../../services/api/orderService');
-      await orderService.updateOrderPickup(pickupModalOrder.id, bagTagId, scaleWeight);
+      await orderService.recordPickup(pickupModalOrder.id, bagTagId, scaleWeight);
       // Auto-advance to facility intake for smooth testing
       await orderService.updateOrderStatus(
         pickupModalOrder.id,
         'RECEIVED_AT_FACILITY',
-        `Transferred to central facility hub in sealed bag ${bagTagId}`,
-        'Pickup Courier'
+        `Transferred to central facility hub in sealed bag ${bagTagId}`
       );
 
       await loadData();
@@ -152,18 +151,31 @@ export const StaffPortalPage: React.FC = () => {
   };
 
   // Advance Facility Stage
-  const handleAdvanceStage = async (orderId: string, currentStage: LaundryStage = 'RECEIVED') => {
-    const currentIndex = LAUNDRY_STAGES_ORDER.indexOf(currentStage);
-    if (currentIndex < LAUNDRY_STAGES_ORDER.length - 1) {
-      const nextStage = LAUNDRY_STAGES_ORDER[currentIndex + 1];
-      try {
-        const { orderService } = await import('../../services/api/orderService');
-        await orderService.advanceLaundryStage(orderId, nextStage);
-        await loadData();
-        showToast(`Order advanced to stage: ${nextStage}`, 'success');
-      } catch {
-        showToast('Failed to advance stage', 'error');
-      }
+  const handleAdvanceStage = async (orderId: string, currentStage?: LaundryStage) => {
+    // Orders can carry a stage value that isn't part of the canonical
+    // progression (e.g. a DB row holding 'IRONING'/'FOLDING'/'PROCESSING').
+    // indexOf() returns -1 for those and `-1 < length - 1` is true, so the old
+    // code sent LAUNDRY_STAGES_ORDER[0] and silently rewound the order to
+    // RECEIVED. Bail out instead of corrupting state.
+    const resolvedStage = currentStage ?? 'RECEIVED';
+    const currentIndex = LAUNDRY_STAGES_ORDER.indexOf(resolvedStage);
+    if (currentIndex === -1) {
+      showToast(`Cannot advance order: unrecognised stage "${currentStage}"`, 'error');
+      return;
+    }
+    if (currentIndex >= LAUNDRY_STAGES_ORDER.length - 1) {
+      showToast('Order is already at the final facility stage', 'info');
+      return;
+    }
+
+    const nextStage = LAUNDRY_STAGES_ORDER[currentIndex + 1];
+    try {
+      const { orderService } = await import('../../services/api/orderService');
+      await orderService.advanceLaundryStage(orderId, nextStage);
+      await loadData();
+      showToast(`Order advanced to stage: ${nextStage}`, 'success');
+    } catch {
+      showToast('Failed to advance stage', 'error');
     }
   };
 
@@ -178,7 +190,7 @@ export const StaffPortalPage: React.FC = () => {
         ...qcForm,
         passed: !qcForm.damage_detected,
         inspected_at: new Date().toISOString(),
-      });
+      } as unknown as Record<string, unknown>, !qcForm.damage_detected);
 
       await loadData();
       setQcModalOrder(null);
@@ -196,14 +208,14 @@ export const StaffPortalPage: React.FC = () => {
     try {
       const { orderService } = await import('../../services/api/orderService');
       const res = await orderService.verifyDeliveryPin(deliveryModalOrder.id, enteredPin);
-      if (res.success) {
+      if (res.ok) {
         await loadData();
         setDeliveryModalOrder(null);
         setEnteredPin('');
         setPinError('');
         showToast(`Handover Verified! Order ${deliveryModalOrder.id} marked DELIVERED.`, 'success');
       } else {
-        setPinError(res.message);
+        setPinError(res.message || 'Invalid PIN');
       }
     } catch {
       setPinError('Failed to verify PIN');
@@ -213,7 +225,21 @@ export const StaffPortalPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-ink dark:border-cream border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (allowedTabs.length === 0) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <Card className="max-w-md w-full p-8 text-center space-y-3">
+          <ShieldCheck className="w-10 h-10 text-slate-300 mx-auto" />
+          <h2 className="text-lg font-semibold text-slate-900">Staff access required</h2>
+          <p className="text-sm text-slate-500">
+            This portal is limited to pickup, facility, and delivery staff accounts.
+          </p>
+        </Card>
       </div>
     );
   }
@@ -221,13 +247,13 @@ export const StaffPortalPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-ink text-white shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-ink text-cream shadow-xl">
         <div className="space-y-1">
           <Badge variant="blue" size="sm">Operational Staff Tower</Badge>
-          <h1 className="text-2xl sm:text-3xl font-bold font-display text-white mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-cream mt-1">
             Staff Fulfillment & Processing Hub
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-cream/60">
             Field agent pickup verification, 7-stage facility processing, and doorstep PIN handover.
           </p>
         </div>
@@ -238,7 +264,7 @@ export const StaffPortalPage: React.FC = () => {
             <button
               onClick={() => setActiveStaffTab('pickup')}
               className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeStaffTab === 'pickup' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+                activeStaffTab === 'pickup' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
               }`}
             >
               <Truck className="w-3.5 h-3.5" />
@@ -249,7 +275,7 @@ export const StaffPortalPage: React.FC = () => {
             <button
               onClick={() => setActiveStaffTab('facility')}
               className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeStaffTab === 'facility' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+                activeStaffTab === 'facility' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -260,7 +286,7 @@ export const StaffPortalPage: React.FC = () => {
             <button
               onClick={() => setActiveStaffTab('delivery')}
               className={`px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeStaffTab === 'delivery' ? 'bg-mint text-white shadow-sm' : 'text-slate-300 hover:text-white'
+                activeStaffTab === 'delivery' ? 'bg-mint text-ink shadow-sm' : 'text-cream/70 hover:text-cream'
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -275,7 +301,7 @@ export const StaffPortalPage: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-xl font-bold font-display text-ink">Scheduled Pickup Assignments</h3>
+              <h3 className="text-xl font-bold font-display text-foreground">Scheduled Pickup Assignments</h3>
               <p className="text-xs text-slate-500">Arrive with calibrated scale and digital tamper-proof bag tags.</p>
             </div>
             <Badge variant="blue">{pickupQueue.length} Pending Pickups</Badge>
@@ -284,20 +310,20 @@ export const StaffPortalPage: React.FC = () => {
           {pickupQueue.length === 0 ? (
             <Card className="p-12 text-center text-slate-400 space-y-2">
               <CheckCircle className="w-10 h-10 text-mint mx-auto" />
-              <div className="font-bold text-ink">All pickups completed!</div>
+              <div className="font-bold text-foreground">All pickups completed!</div>
               <p className="text-xs text-slate-500">No scheduled pickups waiting in the field queue.</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {pickupQueue.map((order) => (
-                <Card key={order.id} className="p-6 border-ink/5 space-y-4 hover:shadow-card-hover">
+                <Card key={order.id} className="p-6 border-slate-200/70 space-y-4 hover:shadow-card-hover">
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-ink">{order.id}</span>
+                        <span className="font-mono font-bold text-sm text-foreground">{order.id}</span>
                         <Badge variant="blue" size="sm">{order.status.replace(/_/g, ' ')}</Badge>
                       </div>
-                      <h4 className="font-bold text-base font-display text-ink mt-1">
+                      <h4 className="font-bold text-base font-display text-foreground mt-1">
                         {order.customer_name}
                       </h4>
                     </div>
@@ -324,7 +350,7 @@ export const StaffPortalPage: React.FC = () => {
 
                   <div className="flex justify-between items-center text-xs pt-2">
                     <span className="text-slate-500">Service: {order.items[0]?.service_name}</span>
-                    <span className="font-mono font-bold text-ink">{order.items[0]?.weight} kg (Est.)</span>
+                    <span className="font-mono font-bold text-foreground">{order.items[0]?.weight ?? '—'} kg (Est.)</span>
                   </div>
 
                   <Button
@@ -348,7 +374,7 @@ export const StaffPortalPage: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-xl font-bold font-display text-ink">7-Stage Laundry Pipeline</h3>
+              <h3 className="text-xl font-bold font-display text-foreground">7-Stage Laundry Pipeline</h3>
               <p className="text-xs text-slate-500">Track and advance garment batches through each specialized care cycle.</p>
             </div>
             <Badge variant="mint">Central Hub North #2</Badge>
@@ -363,14 +389,14 @@ export const StaffPortalPage: React.FC = () => {
               );
 
               return (
-                <div key={stage} className="bg-slate-100/70 p-4 rounded-3xl space-y-3 border border-ink/5">
+                <div key={stage} className="bg-slate-100/70 p-4 rounded-3xl space-y-3 border border-slate-200/70">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold font-display text-ink uppercase tracking-wide">
+                      <span className="text-xs font-bold font-display text-foreground uppercase tracking-wide">
                         {stageInfo.title}
                       </span>
                     </div>
-                    <span className="w-5 h-5 rounded-full bg-white text-ink text-[11px] font-bold flex items-center justify-center shadow-xs">
+                    <span className="w-5 h-5 rounded-full bg-surface text-foreground text-[11px] font-bold flex items-center justify-center shadow-xs">
                       {stageOrders.length}
                     </span>
                   </div>
@@ -384,10 +410,10 @@ export const StaffPortalPage: React.FC = () => {
                       stageOrders.map((order) => (
                         <div
                           key={order.id}
-                          className="p-4 bg-white rounded-2xl border border-ink/5 shadow-xs space-y-2.5"
+                          className="p-4 bg-surface rounded-2xl border border-slate-200/70 shadow-xs space-y-2.5"
                         >
                           <div className="flex justify-between items-start text-xs">
-                            <span className="font-mono font-bold text-ink">{order.id}</span>
+                            <span className="font-mono font-bold text-foreground">{order.id}</span>
                             <span className="text-[10px] font-mono text-slate-400">{order.bag_id || 'BAG-SEALED'}</span>
                           </div>
 
@@ -396,7 +422,7 @@ export const StaffPortalPage: React.FC = () => {
                           </div>
 
                           <div className="flex justify-between items-center text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                            <span>Weight: <strong>{order.measured_weight_kg || order.items[0]?.weight} kg</strong></span>
+                            <span>Weight: <strong>{order.measured_weight_kg ?? order.items[0]?.weight ?? '—'} kg</strong></span>
                             <span>{order.customer_name}</span>
                           </div>
 
@@ -444,7 +470,7 @@ export const StaffPortalPage: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-xl font-bold font-display text-ink">Doorstep Delivery Handover</h3>
+              <h3 className="text-xl font-bold font-display text-foreground">Doorstep Delivery Handover</h3>
               <p className="text-xs text-slate-500">
                 Confirm delivery by asking the customer for their unique 4-digit PIN displayed on their app.
               </p>
@@ -455,20 +481,20 @@ export const StaffPortalPage: React.FC = () => {
           {deliveryQueue.length === 0 ? (
             <Card className="p-12 text-center text-slate-400 space-y-2">
               <CheckCircle className="w-10 h-10 text-mint mx-auto" />
-              <div className="font-bold text-ink">Delivery queue is all clear!</div>
+              <div className="font-bold text-foreground">Delivery queue is all clear!</div>
               <p className="text-xs text-slate-500">All outbound laundry packages have been handed over.</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {deliveryQueue.map((order) => (
-                <Card key={order.id} className="p-6 border-ink/5 space-y-4 hover:shadow-card-hover">
+                <Card key={order.id} className="p-6 border-slate-200/70 space-y-4 hover:shadow-card-hover">
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-ink">{order.id}</span>
+                        <span className="font-mono font-bold text-sm text-foreground">{order.id}</span>
                         <Badge variant="coral" size="sm">{order.status.replace(/_/g, ' ')}</Badge>
                       </div>
-                      <h4 className="font-bold text-base font-display text-ink mt-1">
+                      <h4 className="font-bold text-base font-display text-foreground mt-1">
                         {order.customer_name}
                       </h4>
                     </div>
@@ -488,7 +514,7 @@ export const StaffPortalPage: React.FC = () => {
                       <span>{order.customer_phone}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-500 pt-1 border-t border-slate-200/50">
-                      <span>Bag Identifier: <strong className="font-mono text-ink">{order.bag_id || 'BAG-8824'}</strong></span>
+                      <span>Bag Identifier: <strong className="font-mono text-foreground">{order.bag_id || 'BAG-8824'}</strong></span>
                       <span>Mode: <strong className="uppercase">{order.payment_method}</strong></span>
                     </div>
                   </div>
@@ -543,7 +569,7 @@ export const StaffPortalPage: React.FC = () => {
                   type="text"
                   value={bagTagId}
                   onChange={(e) => setBagTagId(e.target.value)}
-                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-ink/15 font-mono text-sm uppercase tracking-wider outline-none focus:border-mint"
+                  className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-300/80 font-mono text-sm uppercase tracking-wider outline-none focus:border-mint"
                   required
                 />
               </div>
@@ -561,7 +587,7 @@ export const StaffPortalPage: React.FC = () => {
                   max="30"
                   value={scaleWeight}
                   onChange={(e) => setScaleWeight(parseFloat(e.target.value) || 0)}
-                  className="flex-1 h-11 px-4 rounded-xl border border-ink/15 text-lg font-bold font-mono outline-none focus:border-mint"
+                  className="flex-1 h-11 px-4 rounded-xl border border-slate-300/80 text-lg font-bold font-mono outline-none focus:border-mint"
                   required
                 />
                 <span className="font-bold text-sm text-slate-500">kg</span>
@@ -612,7 +638,7 @@ export const StaffPortalPage: React.FC = () => {
               ].map((item) => (
                 <label
                   key={item.key}
-                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
+                  className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-surface hover:bg-slate-50 cursor-pointer"
                 >
                   <input
                     type="checkbox"
@@ -625,7 +651,7 @@ export const StaffPortalPage: React.FC = () => {
                     }
                     className="w-4 h-4 accent-mint rounded"
                   />
-                  <span className="font-medium text-ink">{item.label}</span>
+                  <span className="font-medium text-foreground">{item.label}</span>
                 </label>
               ))}
             </div>
@@ -647,7 +673,7 @@ export const StaffPortalPage: React.FC = () => {
                   placeholder="Describe damage found on garment to alert customer..."
                   value={qcForm.damage_notes}
                   onChange={(e) => setQcForm({ ...qcForm, damage_notes: e.target.value })}
-                  className="w-full p-2 bg-white rounded-lg border border-amber-300 text-xs outline-none"
+                  className="w-full p-2 bg-surface rounded-lg border border-amber-300 text-xs outline-none"
                 />
               )}
             </div>
@@ -680,7 +706,7 @@ export const StaffPortalPage: React.FC = () => {
           <form onSubmit={handleVerifyDelivery} className="space-y-5 text-center">
             <div className="p-4 bg-cream rounded-2xl border border-ink/5 space-y-1">
               <div className="text-xs text-slate-500">Recipient</div>
-              <div className="text-base font-bold text-ink">{deliveryModalOrder.customer_name}</div>
+              <div className="text-base font-bold text-foreground">{deliveryModalOrder.customer_name}</div>
               <div className="text-xs text-slate-400">{deliveryModalOrder.address.address_line}</div>
             </div>
 
@@ -695,11 +721,11 @@ export const StaffPortalPage: React.FC = () => {
                 placeholder="• • • •"
                 value={enteredPin}
                 onChange={(e) => setEnteredPin(e.target.value)}
-                className="w-48 h-14 mx-auto text-center text-3xl font-bold font-mono tracking-widest rounded-2xl border-2 border-ink/20 focus:border-mint focus:ring-4 focus:ring-mint/15 outline-none text-ink"
+                className="w-48 h-14 mx-auto text-center text-3xl font-bold font-mono tracking-widest rounded-2xl border-2 border-slate-300 focus:border-mint focus:ring-4 focus:ring-mint/15 outline-none text-foreground"
                 required
               />
               <p className="text-[11px] text-slate-400">
-                (Demo Hint: Customer's PIN for this order is <strong>{deliveryModalOrder.delivery_pin}</strong>)
+                The customer sees this PIN on their dashboard. Only verify when the customer shares it.
               </p>
             </div>
 

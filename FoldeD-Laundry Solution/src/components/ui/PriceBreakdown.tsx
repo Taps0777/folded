@@ -125,7 +125,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
             key={item.key} 
             className={cn(
               'flex justify-between items-center text-xs transition-all duration-300',
-              animated && 'animate-in fade-in slide-y-in-1',
+              animated && 'animate-fade-in',
               item.emphasis && 'font-medium'
             )}
             style={{ transitionDelay: animated ? `${index * 50}ms` : '0ms' }}
@@ -157,7 +157,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       <div className="grid grid-cols-2 gap-3">
         <div className={cn(
           'p-4 rounded-2xl border transition-all',
-          animated && 'animate-in fade-in zoom-in-95'
+          animated && 'animate-scale-in'
         )}>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -169,7 +169,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         </div>
         <div className={cn(
           'p-4 rounded-2xl border transition-all',
-          animated && 'animate-in fade-in zoom-in-95'
+          animated && 'animate-scale-in'
         )}>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
             <Tag className="w-3.5 h-3.5 text-emerald-600" />
@@ -182,7 +182,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       </div>
 
       {/* Detailed Breakdown */}
-      <div className={cn('rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-3', animated && 'animate-in fade-in')}>
+      <div className={cn('rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-3', animated && 'animate-fade-in')}>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
             <Receipt className="w-3.5 h-3.5 text-emerald-600" />
@@ -196,7 +196,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               key={item.key} 
               className={cn(
                 'flex justify-between items-center text-xs transition-all duration-300',
-                animated && 'animate-in fade-in slide-x-in-2',
+                animated && 'animate-fade-in',
                 item.emphasis && 'font-medium'
               )}
               style={{ transitionDelay: animated ? `${index * 80}ms` : '0ms' }}
@@ -247,7 +247,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       {(couponDiscount > 0 || loyaltyDiscount > 0) && (
         <div className={cn(
           'p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/70 flex items-center justify-between text-xs',
-          animated && 'animate-in fade-in slide-y-in-2'
+          animated && 'animate-fade-in'
         )}>
           <div className="flex items-center gap-2 text-emerald-700 font-semibold">
             <Gift className="w-4 h-4" />
@@ -264,7 +264,7 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       {loyaltyBalance && loyaltyBalance > 0 && !useLoyaltyPoints && loyaltyDiscount === 0 && (
         <div className={cn(
           'p-3 rounded-2xl bg-amber-50/80 border border-amber-200/70 flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 transition-colors',
-          animated && 'animate-in fade-in slide-y-in-2'
+          animated && 'animate-fade-in'
         )}>
           <div className="flex items-center gap-2 text-amber-700">
             <Coins className="w-4 h-4" />

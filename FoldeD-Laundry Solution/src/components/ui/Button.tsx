@@ -7,17 +7,23 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 
+// `ink`/`coral`/`primary` are the same brand button: solid ink in light mode,
+// flipping to cream-on-ink in dark mode. `mint` is the accent CTA.
+const SOLID_INK =
+  "bg-ink text-cream dark:bg-cream dark:text-ink hover:bg-ink/90 dark:hover:bg-cream/90 shadow-xs active:scale-[0.99] font-medium transition-all";
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "coral", size = "md", isLoading, children, disabled, ...props }, ref) => {
     const variants = {
-      coral: "bg-slate-900 text-white hover:bg-black shadow-xs active:scale-[0.99] font-medium transition-all",
-      mint: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs active:scale-[0.99] font-medium transition-all",
-      ink: "bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99] font-medium transition-all",
-      primary: "bg-slate-900 text-white hover:bg-black shadow-xs active:scale-[0.99] font-medium transition-all",
-      secondary: "bg-white text-slate-900 border border-slate-200/80 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99] font-medium transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
-      outline: "bg-transparent text-slate-700 border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900 font-medium transition-all",
-      ghost: "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium transition-all",
-      danger: "bg-rose-600 text-white hover:bg-rose-700 font-medium transition-all",
+      coral: SOLID_INK,
+      ink: SOLID_INK,
+      primary: SOLID_INK,
+      mint: "bg-mint text-ink hover:bg-mint-dark shadow-xs active:scale-[0.99] font-medium transition-all",
+      secondary:
+        "bg-surface text-foreground border border-slate-200/80 hover:bg-slate-100/70 hover:border-slate-300 active:scale-[0.99] font-medium transition-all shadow-xs",
+      outline: "bg-transparent text-slate-700 border border-slate-200/80 hover:bg-slate-100/70 hover:text-foreground font-medium transition-all",
+      ghost: "bg-transparent text-slate-600 hover:bg-slate-100/70 hover:text-foreground font-medium transition-all",
+      danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-xs active:scale-[0.99] font-medium transition-all",
     };
 
     const sizes = {

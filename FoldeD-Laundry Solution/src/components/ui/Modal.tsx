@@ -63,20 +63,20 @@ export const Modal: React.FC<ModalProps> = ({
             exit={{ opacity: 0, scale: 0.95, y: 12 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={cn(
-              'relative w-full bg-white rounded-3xl shadow-2xl border border-ink/10 overflow-hidden z-10 my-8',
+              'relative w-full bg-surface rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-10 my-8',
               maxStyles[maxWidth]
             )}
           >
             {/* Header */}
             {(title || description) && (
-              <div className="px-6 pt-6 pb-4 flex items-start justify-between border-b border-ink/5">
+              <div className="px-6 pt-6 pb-4 flex items-start justify-between border-b border-slate-200/70">
                 <div>
-                  {title && <h3 className="text-xl font-bold font-display text-ink">{title}</h3>}
+                  {title && <h3 className="text-xl font-bold font-display text-foreground">{title}</h3>}
                   {description && <p className="text-xs sm:text-sm text-slate-500 mt-1">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-full text-slate-400 hover:text-ink hover:bg-slate-100 transition-colors"
+                  className="p-2 rounded-full text-slate-400 hover:text-foreground hover:bg-slate-100 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
