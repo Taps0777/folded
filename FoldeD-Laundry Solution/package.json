@@ -12,7 +12,8 @@
     "test:unit": "vitest run src/tests/unit",
     "test:integration": "vitest run src/tests/rbac.test.ts",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "vercel-build": "tsc -b && vite build"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
