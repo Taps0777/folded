@@ -47,6 +47,18 @@ export const BookingPage: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
+  const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    name: '',
+    phone: '',
+    address_line: '',
+    landmark: '',
+    city: '',
+    state: 'Karnataka',
+    postal_code: '',
+    address_type: 'home',
+    is_default: false
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -427,17 +439,48 @@ export const BookingPage: React.FC = () => {
             </div>
           </div>
 
-          {[3, 5, 7, 10].map((kg) => (
-            <Button
-              key={kg}
-              variant={weightKg === kg ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setWeightKg(kg)}
-              className="w-full py-2.5 rounded-full text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all"
-            >
-              {kg} kg
-            </Button>
-          ))}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Quick Select:</span>
+              <div className="flex gap-2">
+                {[3, 5, 7, 10].map((kg) => (
+                  <Button
+                    key={kg}
+                    variant={weightKg === kg ? 'primary' : 'outline'}
+                    size="sm"
+                    onClick={() => setWeightKg(kg)}
+                    className="px-3 py-1.5 rounded-full text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all"
+                  >
+                    {kg} kg
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+              <label className="block text-xs font-medium text-slate-700 mb-2">
+                Or enter custom weight (kg)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0.5"
+                  max="30"
+                  step="0.5"
+                  value={weightKg}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value >= 0.5 && value <= 30) {
+                      setWeightKg(value);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded border border-slate-300 focus:border-ink focus:ring-1 focus:ring-ink/20 text-sm"
+                  placeholder="e.g., 2.5"
+                />
+                <span className="text-xs text-slate-500">kg</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-4">We'll weigh your laundry when we collect it.</p>
@@ -520,14 +563,30 @@ export const BookingPage: React.FC = () => {
           ))}
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/dashboard')}
-          className="w-full py-2.5 rounded-full bg-surface border border-slate-300 text-slate-600 font-medium text-xs hover:bg-slate-50 transition-all"
-        >
-          + Add new address
-        </Button>
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // Reset form when opening modal
+              setNewAddress({
+                name: '',
+                phone: '',
+                address_line: '',
+                landmark: '',
+                city: '',
+                state: 'Karnataka',
+                postal_code: '',
+                address_type: 'home',
+                is_default: false
+              });
+              setAddAddressModalOpen(true);
+            }}
+            className="w-full py-2.5 rounded-full bg-surface border border-slate-300 text-slate-600 font-medium text-xs hover:bg-slate-50 transition-all"
+          >
+            + Add new address
+          </Button>
+        </div>
       </div>
     );
   }
@@ -686,4 +745,159 @@ export const BookingPage: React.FC = () => {
       </div>
     );
   }
-};
+
+  // Address Modal Component
+  function AddressModal() {
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      // Basic validation
+      if (!newAddress.name.trim() || !newAddress.phone.trim() || !newAddress.address_line.trim() || !newAddress.city.trim() || !newAddress.postal_code.trim()) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        if (!currentUser) {
+          showToast('Please sign in to save an address', 'error');
+          return;
+        }
+
+        await addressService.addAddress(currentUser.id, {
+          name: newAddress.name,
+          phone: newAddress.phone,
+          address_line: newAddress.address_line,
+          landmark: newAddress.landmark,
+          city: newAddress.city,
+          state: newAddress.state,
+          postal_code: newAddress.postal_code,
+          address_type: newAddress.address_type,
+          is_default: newAddress.is_default
+        });
+
+        await loadData(); // Refresh addresses
+        setAddAddressModalOpen(false);
+        showToast('Address saved successfully!', 'success');
+      } catch (error) {
+        console.error('Error saving address:', error);
+        showToast('Failed to save address. Please try again.', 'error');
+      }
+    };
+
+    return (
+      <Modal
+        isOpen={addAddressModalOpen}
+        onClose={() => setAddAddressModalOpen(false)}
+        title="Add New Address"
+        description="Save this address for faster future bookings"
+        maxWidth="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Address Name (e.g., Home, Office)</label>
+              <Input
+                value={newAddress.name}
+                onChange={(e) => setNewAddress({...newAddress, name: e.target.value})}
+                placeholder="e.g., My Home"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+              <Input
+                type="tel"
+                value={newAddress.phone}
+                onChange={(e) => setNewAddress({...newAddress, phone: e.target.value})}
+                placeholder="+91 98765 43210"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Address Line</label>
+            <Input
+              value={newAddress.address_line}
+              onChange={(e) => setNewAddress({...newAddress, address_line: e.target.value})}
+              placeholder="123 Main Street, Apt 4B"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Landmark (Optional)</label>
+              <Input
+                value={newAddress.landmark}
+                onChange={(e) => setNewAddress({...newAddress, landmark: e.target.value})}
+                placeholder="Near ABC Mall"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+              <Input
+                value={newAddress.city}
+                onChange={(e) => setNewAddress({...newAddress, city: e.target.value})}
+                placeholder="Bengaluru"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
+              <Input
+                value={newAddress.state}
+                onChange={(e) => setNewAddress({...newAddress, state: e.target.value})}
+                placeholder="Karnataka"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Postal Code</label>
+              <Input
+                type="text"
+                maxLength={6}
+                value={newAddress.postal_code}
+                onChange={(e) => setNewAddress({...newAddress, postal_code: e.target.value})}
+                placeholder="560001"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={newAddress.is_default}
+                onChange={(e) => setNewAddress({...newAddress, is_default: e.target.checked})}
+                className="h-4 w-4 text-emerald-600 border-slate-300 rounded"
+              />
+            </div>
+            <span className="text-sm font-medium text-slate-700">
+              Set as default address
+            </span>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              onClick={() => setAddAddressModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="mint" size="md" className="gap-2 font-bold">
+              <MapPin className="w-4 h-4" />
+              Save Address
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+}

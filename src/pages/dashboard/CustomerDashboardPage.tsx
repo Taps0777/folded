@@ -640,51 +640,61 @@ export const CustomerDashboardPage: React.FC = () => {
               </Link>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {addresses.map((addr) => (
-                <Card key={addr.id} className="p-6 border-slate-200/80 space-y-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">{addr.name}</span>
-                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                        {addr.address_type}
-                      </span>
-                      {addr.is_default && <Badge variant="mint" size="sm">Default</Badge>}
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {addresses.map((addr) => (
+                  <Card key={addr.id} className="p-6 border-slate-200/80 space-y-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900">{addr.name}</span>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          {addr.address_type}
+                        </span>
+                        {addr.is_default && <Badge variant="mint" size="sm">Default</Badge>}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await addressService.deleteAddress(addr.id);
+                          await loadData();
+                          showToast('Address removed', 'info');
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={async () => {
-                        await addressService.deleteAddress(addr.id);
-                        await loadData();
-                        showToast('Address removed', 'info');
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {addr.address_line}, {addr.landmark ? `${addr.landmark}, ` : ''}{addr.city} — {addr.postal_code}
-                  </p>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {addr.address_line}, {addr.landmark ? `${addr.landmark}, ` : ''}{addr.city} — {addr.postal_code}
+                    </p>
 
-                  <div className="text-xs text-slate-400">Phone: {addr.phone}</div>
+                    <div className="text-xs text-slate-400">Phone: {addr.phone}</div>
 
-                  {!addr.is_default && (
-                    <button
-                      onClick={async () => {
-                        await addressService.setDefaultAddress(currentUser.id, addr.id);
-                        await loadData();
-                        showToast('Set as default address', 'success');
-                      }}
-                      className="text-xs font-semibold text-emerald-600 hover:underline flex items-center gap-1"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Set as Default
-                    </button>
-                  )}
-                </Card>
-              ))}
-            </div>
+                    {!addr.is_default && (
+                      <button
+                        onClick={async () => {
+                          await addressService.setDefaultAddress(currentUser.id, addr.id);
+                          await loadData();
+                          showToast('Set as default address', 'success');
+                        }}
+                        className="text-xs font-semibold text-emerald-600 hover:underline flex items-center gap-1"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Set as Default
+                      </button>
+                    )}
+                  </Card>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-center">
+                <Link to="/booking">
+                  <Button variant="coral" size="sm" className="gap-1.5">
+                    <Plus className="w-3.5 h-3.5" />
+                    Add New Address
+                  </Button>
+                </Link>
+              </div>
+            </>
           )}
         </div>
       )}
