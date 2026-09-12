@@ -12,7 +12,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { ServiceCard } from '../../components/ui/ServiceCard';
-import { Sparkles, Clock, ArrowRight, Home, History, User, ArrowLeft, Plus, Loader2 } from 'lucide-react';
+import { Modal } from '../../components/ui/Modal';
+import { Sparkles, Clock, ArrowRight, Home, History, User, ArrowLeft, Plus, Loader2, MapPin } from 'lucide-react';
 
 const STEPS = [
   { id: 'service', label: 'Service', icon: Sparkles },
@@ -54,14 +55,27 @@ export const BookingPage: React.FC = () => {
     address_line: '',
     landmark: '',
     city: '',
-    state: 'Karnataka',
+    state: 'Karnataka' as 'home' | 'work' | 'other' | undefined,
     postal_code: '',
     address_type: 'home',
     is_default: false
   });
 
+  // Function to load addresses
+  const loadAddresses = async () => {
+    try {
+      if (currentUser) {
+        const all = await addressService.getAddressesByUser(currentUser.id);
+        setAddresses(all);
+      }
+    } catch (e) {
+      console.error(e);
+      setLoadError('Unable to load your addresses. Please try again later.');
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
+    const loadServices = async () => {
       try {
         const dbServices = await serviceService.getAllServices();
         setServices(dbServices);
@@ -71,22 +85,7 @@ export const BookingPage: React.FC = () => {
         setLoadError('Unable to load services. Please try again later.');
       }
     };
-    loadData();
 
-    const loadAddresses = async () => {
-      try {
-        if (currentUser) {
-          const all = await addressService.getAddressesByUser(currentUser.id);
-          setAddresses(all);
-        }
-      } catch (e) {
-        console.error(e);
-        setLoadError('Unable to load your addresses. Please try again later.');
-      }
-    };
-    loadAddresses();
-
-    // Real loyalty balance (RLS allows a user to read their own account).
     const loadLoyalty = async () => {
       if (!currentUser) return;
       try {
@@ -101,6 +100,9 @@ export const BookingPage: React.FC = () => {
         setLoyaltyAcc({ balance: 0 });
       }
     };
+
+    loadServices();
+    loadAddresses();
     loadLoyalty();
   }, [currentUser]);
 
@@ -185,8 +187,8 @@ export const BookingPage: React.FC = () => {
       pickupDate === 'Today'
         ? new Date().toISOString().slice(0, 10)
         : pickupDate === 'Tomorrow'
-        ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
-        : new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+          ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+          : new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
     setIsSubmitting(true);
 
@@ -575,7 +577,7 @@ export const BookingPage: React.FC = () => {
                 address_line: '',
                 landmark: '',
                 city: '',
-                state: 'Karnataka',
+                state: 'Karnataka' as 'home' | 'work' | 'other' | undefined,
                 postal_code: '',
                 address_type: 'home',
                 is_default: false
@@ -587,6 +589,9 @@ export const BookingPage: React.FC = () => {
             + Add new address
           </Button>
         </div>
+
+        {/* Address Modal */}
+        {addAddressModalOpen && <AddressModal />}
       </div>
     );
   }
@@ -634,7 +639,7 @@ export const BookingPage: React.FC = () => {
               <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Address</span>
               <p className="font-medium text-slate-900 mt-1">{selectedAddr?.label || selectedAddr?.name || 'Home'}</p>
               <p className="text-xs text-slate-500 mt-1">{selectedAddr?.street || selectedAddr?.address_line || '123 Main Street'}</p>
-              <p className="text-xs text-slate-500 mt-1">{selectedAddr?.city || 'Jaipur'}</p>
+              <p className="text-xs text-slate-500 mt-1>{selectedAddr?.city || 'Jaipur'}</p>
             </div>
             <div>
               <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Express</span>
@@ -687,61 +692,61 @@ export const BookingPage: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Total</span>
             <span className="font-bold text-2xl text-slate-900">{formatCurrency(t)}</span>
           </div>
+        </div>
 
-          {/* Coupon & Loyalty - compact */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start">
-            <div className="flex gap-2">
-              <Input
-                placeholder="COUPON50"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                className="h-8 w-40 rounded-full bg-slate-50 border border-slate-200 px-3 text-sm"
-              />
-              <Button variant="ghost" size="sm" onClick={handleApplyCoupon}>
-                Apply
-              </Button>
-            </div>
-            {appliedCoupon && (
-              <div className="flex-1">
-                <p className="text-emerald-600 font-medium text-sm">✓ {appliedCoupon.code} applied — Save ₹{appliedCoupon.discount}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Loyalty points */}
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-slate-600">
-              You have {loyaltyAcc?.balance ?? 0} FoldeD Points
-              {(loyaltyAcc?.balance ?? 0) > 0 && (
-                <span className="text-slate-400"> (worth {formatCurrency((loyaltyAcc?.balance ?? 0) * 0.1)})</span>
-              )}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={(loyaltyAcc?.balance ?? 0) <= 0}
-              onClick={() => setUseLoyaltyPoints(!useLoyaltyPoints)}
-            >
-              {useLoyaltyPoints ? 'Remove points' : 'Use points'}
+        {/* Coupon & Loyalty - compact */}
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start">
+          <div className="flex gap-2">
+            <Input
+              placeholder="COUPON50"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              className="h-8 w-40 rounded-full bg-slate-50 border border-slate-200 px-3 text-sm"
+            />
+            <Button variant="ghost" size="sm" onClick={handleApplyCoupon}>
+              Apply
             </Button>
           </div>
+          {appliedCoupon && (
+            <div className="flex-1">
+              <p className="text-emerald-600 font-medium text-sm">✓ {appliedCoupon.code} applied — Save ₹{appliedCoupon.discount}</p>
+            </div>
+          )}
         </div>
 
-        {/* Payment CTA */}
-        <div className="mt-8 pt-8 border-t border-slate-200">
-          <Button
-            size="lg"
-            disabled={isSubmitting}
-            onClick={handleBookAndPay}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink font-medium shadow-lg transition-all active:scale-95 w-full"
-          >
-            {isSubmitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-            ) : (
-              <>Pay ₹{formatCurrency(t)} & Book Pickup <ArrowRight className="w-4 h-4" /></>
+        {/* Loyalty points */}
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-slate-600">
+            You have {loyaltyAcc?.balance ?? 0} FoldeD Points
+            {(loyaltyAcc?.balance ?? 0) > 0 && (
+              <span className="text-slate-400"> (worth {formatCurrency((loyaltyAcc?.balance ?? 0) * 0.1)})</span>
             )}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={(loyaltyAcc?.balance ?? 0) <= 0}
+            onClick={() => setUseLoyaltyPoints(!useLoyaltyPoints)}
+          >
+            {useLoyaltyPoints ? 'Remove points' : 'Use points'}
           </Button>
         </div>
+      </div>
+
+      {/* Payment CTA */}
+      <div className="mt-8 pt-8 border-t border-slate-200">
+        <Button
+          size="lg"
+          disabled={isSubmitting}
+          onClick={handleBookAndPay}
+          className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink font-medium shadow-lg transition-all active:scale-95 w-full"
+        >
+          {isSubmitting ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+          ) : (
+            <>Pay ₹{formatCurrency(t)} & Book Pickup <ArrowRight className="w-4 h-4" /></>
+          )}
+        </Button>
       </div>
     );
   }
@@ -775,7 +780,8 @@ export const BookingPage: React.FC = () => {
           is_default: newAddress.is_default
         });
 
-        await loadData(); // Refresh addresses
+        // Refresh addresses
+        await loadAddresses();
         setAddAddressModalOpen(false);
         showToast('Address saved successfully!', 'success');
       } catch (error) {
@@ -900,4 +906,4 @@ export const BookingPage: React.FC = () => {
       </Modal>
     );
   }
-}
+};
