@@ -639,7 +639,7 @@ export const BookingPage: React.FC = () => {
               <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Address</span>
               <p className="font-medium text-slate-900 mt-1">{selectedAddr?.label || selectedAddr?.name || 'Home'}</p>
               <p className="text-xs text-slate-500 mt-1">{selectedAddr?.street || selectedAddr?.address_line || '123 Main Street'}</p>
-              <p className="text-xs text-slate-500 mt-1>{selectedAddr?.city || 'Jaipur'}</p>
+              <p className="text-xs text-slate-500 mt-1">{selectedAddr?.city || 'Jaipur'}</p>
             </div>
             <div>
               <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Express</span>
